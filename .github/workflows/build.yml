@@ -18,8 +18,8 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          # Remove the pre-installed libunwind packages that conflict with the dev package
-          sudo apt-get remove -y libunwind-*
+          # Remove the conflicting libunwind package
+          sudo apt-get remove -y libunwind-* || true
           sudo apt-get install -y git zip unzip openjdk-17-jdk autoconf libtool pkg-config \
             zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev \
             libssl-dev automake autopoint gettext aidl lib32stdc++6 libltdl-dev libgstreamer1.0-dev
@@ -28,6 +28,20 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install setuptools wheel buildozer "cython<3.0"
+
+      - name: Download and Patch libthorvg Recipe
+        run: |
+          mkdir -p custom_recipes/libthorvg
+          # Download the latest recipe from the p4a repo
+          curl -sL https://raw.githubusercontent.com/kivy/python-for-android/develop/pythonforandroid/recipes/libthorvg/__init__.py -o custom_recipes/libthorvg/__init__.py
+          # Patch the hardcoded 'lib/clang' to 'lib*/clang' so it finds the NDK's lib64 folder
+          sed -i 's|lib/clang|lib*/clang|g' custom_recipes/libthorvg/__init__.py
+
+      - name: Configure Buildozer to use custom recipes
+        run: |
+          # Remove any existing p4a.local_recipes line and append our custom folder
+          sed -i '/p4a.local_recipes/d' buildozer.spec
+          echo "p4a.local_recipes = ./custom_recipes" >> buildozer.spec
 
       - name: Cache Buildozer global directory
         uses: actions/cache@v4
@@ -40,10 +54,6 @@ jobs:
         with:
           path: .buildozer
           key: buildozer-local-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
-
-      - name: Patch libthorvg recipe
-        run: |
-          sed -i 's|lib/clang|lib*/clang|g' ~/.buildozer/android/platform/python-for-android/pythonforandroid/recipes/libthorvg/__init__.py || true
 
       - name: Build APK
         run: |
