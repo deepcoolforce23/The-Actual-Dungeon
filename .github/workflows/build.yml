@@ -18,6 +18,8 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
+          # Remove the pre-installed libunwind packages that conflict with the dev package
+          sudo apt-get remove -y libunwind-*
           sudo apt-get install -y git zip unzip openjdk-17-jdk autoconf libtool pkg-config \
             zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev \
             libssl-dev automake autopoint gettext aidl lib32stdc++6 libltdl-dev libgstreamer1.0-dev
@@ -25,7 +27,6 @@ jobs:
       - name: Install Buildozer and Cython
         run: |
           python -m pip install --upgrade pip
-          # Explicitly install setuptools to provide distutils compatibility
           pip install setuptools wheel buildozer "cython<3.0"
 
       - name: Cache Buildozer global directory
@@ -42,13 +43,10 @@ jobs:
 
       - name: Patch libthorvg recipe
         run: |
-          # Find the recipe file and patch the hardcoded 'lib/clang' path to 'lib*/clang'
-          # This fixes the IndexError on modern NDKs like 25b
           sed -i 's|lib/clang|lib*/clang|g' ~/.buildozer/android/platform/python-for-android/pythonforandroid/recipes/libthorvg/__init__.py || true
 
       - name: Build APK
         run: |
-          # 'yes |' automatically accepts any SDK license prompts
           yes | buildozer -v android debug
 
       - name: Upload APK
