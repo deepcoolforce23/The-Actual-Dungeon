@@ -674,6 +674,10 @@ class CharacterSheet(BoxLayout):
 
     # ---------- Popups for Inventory & Effects ----------
     def open_inventory_popup(self, instance):
+        # Detach from previous parent to prevent crash on reopening
+        if self.inv_container.parent:
+            self.inv_container.parent.remove_widget(self.inv_container)
+
         content = BoxLayout(orientation='vertical', padding=dp(10), spacing=dp(8))
         
         sv = ScrollView()
@@ -701,6 +705,12 @@ class CharacterSheet(BoxLayout):
         pop.open()
 
     def open_effects_popup(self, instance):
+        # Detach from previous parent to prevent crash on reopening
+        if self.infected_status_label.parent:
+            self.infected_status_label.parent.remove_widget(self.infected_status_label)
+        if self.effects_container.parent:
+            self.effects_container.parent.remove_widget(self.effects_container)
+
         content = BoxLayout(orientation='vertical', padding=dp(10), spacing=dp(8))
         
         sv = ScrollView()
