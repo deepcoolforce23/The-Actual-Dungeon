@@ -1,9 +1,11 @@
 name: Build APK
+
 on: [push, workflow_dispatch]
 
 jobs:
   build-android:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -18,26 +20,39 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y git zip unzip openjdk-17-jdk autoconf libtool pkg-config \
             zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev \
-            libssl-dev automake autopoint gettext aidl lib32stdc++6
+            libssl-dev automake autopoint gettext aidl lib32stdc++6 libltdl-dev libgstreamer1.0-dev
 
-      - name: Install Buildozer
+      - name: Install Buildozer and Cython
         run: |
           python -m pip install --upgrade pip
-          pip install buildozer cython
+          # Explicitly install setuptools to provide distutils compatibility
+          pip install setuptools wheel buildozer "cython<3.0"
 
-      - name: Cache Buildozer
+      - name: Cache Buildozer global directory
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.buildozer
-            .buildozer
+          path: ~/.buildozer
           key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
 
+      - name: Cache Buildozer local directory
+        uses: actions/cache@v4
+        with:
+          path: .buildozer
+          key: buildozer-local-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
+
+      - name: Patch libthorvg recipe
+        run: |
+          # Find the recipe file and patch the hardcoded 'lib/clang' path to 'lib*/clang'
+          # This fixes the IndexError on modern NDKs like 25b
+          sed -i 's|lib/clang|lib*/clang|g' ~/.buildozer/android/platform/python-for-android/pythonforandroid/recipes/libthorvg/__init__.py || true
+
       - name: Build APK
-        run: yes | buildozer -v android debug
+        run: |
+          # 'yes |' automatically accepts any SDK license prompts
+          yes | buildozer -v android debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug-apk
+          name: TAD-APK
           path: bin/*.apk
