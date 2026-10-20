@@ -1,9 +1,43 @@
-- name: Buildozer-Kivy-Apk-Creator
-  # You may pin to the exact commit or the version.
-  # uses: wildspider57389928/Buildozer-Kivy-APK_Creator@08e04fd25fa70c8468f00c99cb3a52feda0ef928
-  uses: wildspider57389928/Buildozer-Kivy-APK_Creator@4.0.0
-  with:
-    # Building Directory
-    project-dir: .
-    # Buildozer command
-    command: buildozer android debug
+name: Build Kivy APK
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch: # Allows manual trigger from the Actions tab
+
+jobs:
+  build-android:
+    name: Build for Android
+    runs-on: ubuntu-latest
+
+    # Required if you later add a step to upload to Releases
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cache Buildozer global directory
+        uses: actions/cache@v4
+        with:
+          path: .buildozer_global
+          key: buildozer-global-${{ hashFiles('buildozer.spec') }}
+
+      - name: Build with Buildozer
+        uses: ArtemSBulgakov/buildozer-action@v1
+        id: buildozer
+        with:
+          command: buildozer android debug
+          # Explicitly set the working directory (use '.' if buildozer.spec is in the repo root)
+          workdir: .
+          # Pin Buildozer to a stable version for reproducible builds
+          buildozer_version: stable
+
+      - name: Upload APK as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: package
+          path: ${{ steps.buildozer.outputs.filename }}
