@@ -5,14 +5,12 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
-  workflow_dispatch: # Allows manual trigger from the Actions tab
+  workflow_dispatch:
 
 jobs:
   build-android:
     name: Build for Android
     runs-on: ubuntu-latest
-
-    # Required if you later add a step to upload to Releases
     permissions:
       contents: write
 
@@ -20,20 +18,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Cache Buildozer global directory
-        uses: actions/cache@v4
-        with:
-          path: .buildozer_global
-          key: buildozer-global-${{ hashFiles('buildozer.spec') }}
-
       - name: Build with Buildozer
-        uses: ArtemSBulgakov/buildozer-action@v1
+        uses: guysoft/buildozer-action@v1
         id: buildozer
         with:
           command: buildozer android debug
-          # Explicitly set the working directory (use '.' if buildozer.spec is in the repo root)
+          # Set the working directory where your buildozer.spec file is located
           workdir: .
-          # Pin Buildozer to a stable version for reproducible builds
+          # Pin Buildozer to a stable version
           buildozer_version: stable
 
       - name: Upload APK as artifact
