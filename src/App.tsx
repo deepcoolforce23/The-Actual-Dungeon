@@ -19,7 +19,6 @@ const generateKurodoko = (size: number) => {
     let c = Math.floor(Math.random() * size);
     if (grid[r][c].isBlack) continue;
     
-    // Check adjacency
     let adj = false;
     if (r > 0 && grid[r-1][c].isBlack) adj = true;
     if (r < size-1 && grid[r+1][c].isBlack) adj = true;
@@ -29,7 +28,6 @@ const generateKurodoko = (size: number) => {
     if (!adj) {
       grid[r][c].isBlack = true;
       
-      // Check connectivity of remaining white cells
       let whites = [];
       for (let i=0; i<size; i++) {
         for (let j=0; j<size; j++) {
@@ -59,14 +57,13 @@ const generateKurodoko = (size: number) => {
       }
       
       if (visited.size !== whites.length) {
-        grid[r][c].isBlack = false; // Undo if it disconnects the board
+        grid[r][c].isBlack = false;
       } else {
         blackCount--;
       }
     }
   }
   
-  // Calculate numbers based on the solution
   for (let r=0; r<size; r++) {
     for (let c=0; c<size; c++) {
       if (!grid[r][c].isBlack) {
@@ -89,7 +86,6 @@ const generateKurodoko = (size: number) => {
 const isValidKurodoko = (grid: any[][]) => {
   const size = grid.length;
   
-  // 1. Check adjacency
   for (let r=0; r<size; r++) {
     for (let c=0; c<size; c++) {
       if (grid[r][c].isBlack) {
@@ -99,7 +95,6 @@ const isValidKurodoko = (grid: any[][]) => {
     }
   }
   
-  // 2. Check connectivity
   let whites = [];
   for (let i=0; i<size; i++) {
     for (let j=0; j<size; j++) {
@@ -128,7 +123,6 @@ const isValidKurodoko = (grid: any[][]) => {
   }
   if (visited.size !== whites.length) return false;
   
-  // 3. Check numbers
   for (let r=0; r<size; r++) {
     for (let c=0; c<size; c++) {
       if (!grid[r][c].isBlack && grid[r][c].num > 0) {
@@ -244,7 +238,15 @@ const DEFAULT_STATE = {
   infectedEndTime: 0,
   activeCurse: null as string | null,
   learnedRecipes: ['torch', 'wooden_shield'] as string[],
-  customMods: [] as any[]
+  customMods: [] as any[],
+  customItems: [] as any[],
+  customEquips: [] as any[],
+  // Per-weapon enchantment state. Weapon must be "unlocked" (via Shimmering Sandpaper
+  // or Vessel of a Soul) before it can receive its single, permanent enchantment.
+  weaponEnchantments: {} as { [weaponName: string]: { unlocked: boolean; enchantment?: string } },
+  // Custom "invent your own move" skills, earned at level 5 and level 10.
+  // Each entry: { id, milestone, name, epType, epValue, description, used }
+  customSkills: [] as any[],
 };
 
 type ItemCategory =
@@ -275,9 +277,9 @@ const ITEM_DATABASE: ItemEntry[] = [
   { key: 'stick', name: 'Stick', category: 'material', aliases: ['stick'], note: 'Combine with Cloth -> Torch' },
   { key: 'reddish_greyish_powder', name: 'Reddish-Greyish Powder', category: 'material', aliases: ['powder', 'red powder', 'reddish powder'], note: 'Volatile substance used as a base for potions' },
   { key: 'blackpowder', name: 'Blackpowder', category: 'material', aliases: ['black powder', 'gunpowder'], note: 'Explosive powder used to fire Arquebuses.' },
-  { key: 'shimmering_sandpaper', name: 'Shimmering Sandpaper', category: 'material', note: 'Permanent weapon enhancement (Blazing / Bludgeoning / Cleaving)' },
+  { key: 'shimmering_sandpaper', name: 'Shimmering Sandpaper', category: 'material', note: 'Use to prepare your currently equipped weapon for a permanent enchantment.' },
   { key: 'opaque_shard', name: 'Opaque Shard', category: 'material', note: 'Solid darkness' },
-  { key: 'vessel_soul', name: 'Vessel of a Soul', category: 'special', aliases: ['vessel of souls'], note: 'Trapped spectre' },
+  { key: 'vessel_soul', name: 'Vessel of a Soul', category: 'special', aliases: ['vessel of souls', 'vessel of soul'], note: 'Trapped spectre. Use to prepare your currently equipped weapon for a permanent enchantment.' },
   { key: 'gears', name: 'Gears', category: 'material', aliases: ['gears'], note: 'Useful for complicated machinery.' },
 
   { key: 'green_vial', name: 'Green Vial', category: 'material', aliases: ['green vial'], note: 'Acidic substance, slightly corrosive.' },
@@ -356,7 +358,7 @@ const ITEM_DATABASE: ItemEntry[] = [
   
   { key: 'book_al_artifice', name: "Alchemia I", category: 'book', teachesRecipes: ['ether', 'healing_potion'], note: 'Teaches how to make some useful remedies.' },
   { key: 'book_al_artifice2', name: "Alchemia II", category: 'book', teachesRecipes: ['combustive_vial','poison_vial','smoke_pot'], note: 'Teaches how to make some volatile potions.' },
-  { key: 'book_illnesses', name: "Common Illnesses and Afflictions", category: 'book', teachesRecipes: ['doctor_mask'], note: 'Teaches how to make some useful remedies.' },
+  { key: 'book_illnesses', name: 'Common Illnesses and Afflictions', category: 'book', teachesRecipes: ['doctor_mask'], note: 'Teaches how to make some useful remedies.' },
   { key: 'book_al_artifice3', name: "Alchemia?", category: 'book', teachesRecipes: ['very_potent_healing_potion','cure_all'], note: '???' },
   
   { key: 'kriegsmaschinen', name: "Kriegsmaschinen", category: 'book', teachesRecipes: ['arquebus', 'ballista'], note: 'A weathered book containing instructions on how to make machines of war.' },
@@ -429,6 +431,36 @@ const ALL_CRAFTING_RECIPES = [
     ingredients: [{ key: 'leather_straps', name: 'Leather Straps', qty: 2 }, { key: 'refreshing_herb', name: 'Refreshing Herb', qty: 1 }, { key: 'cloth', name: 'Cloth', qty: 1 }]
   },
 ];
+
+// ✦ WEAPON ENCHANTMENTS
+// Each weapon can hold exactly ONE enchantment, which is PERMANENT for that weapon
+// (tracked by weapon name). Once applied, it cannot be changed or removed.
+// Each weapon must ALSO be individually "unlocked" by using a Shimmering Sandpaper
+// or Vessel of a Soul on it (via the Inventory tab). Weapons with the same name
+// share enchantment state, since they're the same item type.
+// To add a new enchantment, just append { key, name, desc } here.
+const ENCHANTMENTS = [
+  {
+    key: 'blazing',
+    name: 'Blazing',
+    desc: 'Attacks can deal Burn II for d4 turns.',
+  },
+  {
+    key: 'bludgeoning',
+    name: 'Bludgeoning',
+    desc: 'Only for Blunt weapons. Coinflip to Paralyze enemies for 2 turns.',
+  },
+  {
+    key: 'cleaving',
+    name: 'Cleaving',
+    desc: '+10 damage to Blades. Cause Bleeding for 2 turns on regular attack.',
+  },
+  // Add your own below:
+  // { key: 'frostbound', name: 'Frostbound', desc: 'On hit, coinflip to Slow enemy for 1 turn.' },
+];
+
+// Keys of items that unlock a weapon for enchantment
+const ENCHANTMENT_UNLOCK_KEYS = ['shimmering_sandpaper', 'vessel_soul'];
 
 const searchItems = (query: string): ItemEntry[] => {
   const q = query.trim().toLowerCase();
@@ -583,12 +615,27 @@ export default function App() {
   const [modStatInput, setModStatInput] = useState('def');
   const [modAmountInput, setModAmountInput] = useState('-1');
 
+  // Custom Creator Form
+  const [makerType, setMakerType] = useState<'item' | 'equip'>('item');
+  const [customName, setCustomName] = useState('');
+  const [customDesc, setCustomDesc] = useState('');
+  const [equipSlot, setEquipSlot] = useState<'weapon' | 'head' | 'body' | 'shield'>('weapon');
+  const [equipDmg, setEquipDmg] = useState('0');
+  const [equipCrit, setEquipCrit] = useState('0');
+  const [equipDef, setEquipDef] = useState('0');
+  const [equipMods, setEquipMods] = useState<any[]>([]);
+  const [tempModStat, setTempModStat] = useState('maxEp');
+  const [tempModAmount, setTempModAmount] = useState('0');
+
+  // Custom Skill Maker Form (available at level 5 and level 10, once per milestone)
+  const [customSkillName, setCustomSkillName] = useState('');
+  const [customSkillEpType, setCustomSkillEpType] = useState<'d4' | 'd6' | 'd12' | 'd20' | 'flat'>('d6');
+  const [customSkillEpValue, setCustomSkillEpValue] = useState('10');
+  const [customSkillDesc, setCustomSkillDesc] = useState('');
+
   // --- OTA UPDATE LOGIC ---
   useEffect(() => {
-    // Tells Capacitor the app loaded successfully (prevents rollback)
     CapacitorUpdater.notifyAppReady().catch(console.warn);
-    
-    // Delay update check slightly so it doesn't block initial render
     const timer = setTimeout(() => {
       checkForOTAUpdate();
     }, 3000);
@@ -597,32 +644,29 @@ export default function App() {
 
   const checkForOTAUpdate = async () => {
     try {
-      const GITHUB_REPO = 'YOUR_GITHUB_USERNAME/YOUR_REPO_NAME'; // <--- CHANGE THIS
+      const GITHUB_REPO = 'YOUR_GITHUB_USERNAME/YOUR_REPO_NAME';
       
       const response = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`);
-      if (!response.ok) return; // If no releases, do nothing
+      if (!response.ok) return;
       
       const latestRelease = await response.json();
       
-      // Use CapacitorUpdater to get the current bundle version
       const currentBundle = await CapacitorUpdater.current();
       const currentVersion = currentBundle.bundle.version;
       
       const latestVersion = latestRelease.tag_name.replace('v', '');
       
       if (latestVersion !== currentVersion) {
-        // Look for the zip asset in the release
         const zipAsset = latestRelease.assets.find((asset: any) => asset.name.endsWith('.zip'));
         
         if (zipAsset) {
           const userConfirmed = window.confirm(`New update (v${latestVersion}) is available! Download now?`);
           if (userConfirmed) {
-            // Download and apply the new bundle
             const bundle = await CapacitorUpdater.download({
               url: zipAsset.browser_download_url,
               version: latestVersion,
             });
-            await CapacitorUpdater.set(bundle); // This will restart the app
+            await CapacitorUpdater.set(bundle);
           }
         }
       }
@@ -655,7 +699,69 @@ export default function App() {
       }
       if (!parsed.learnedRecipes) parsed.learnedRecipes = ['torch', 'wooden_shield'];
       if (!parsed.customMods) parsed.customMods = [];
-      
+      if (!parsed.customItems) parsed.customItems = [];
+      if (!parsed.customEquips) parsed.customEquips = [];
+      if (!parsed.customSkills) parsed.customSkills = [];
+
+      // Migrate old enchantment formats to new per-weapon { unlocked, enchantment } shape.
+      const oldEns: any = parsed.weaponEnchantments || {};
+      const newEns: { [k: string]: { unlocked: boolean; enchantment?: string } } = {};
+      for (const k of Object.keys(oldEns)) {
+        const v = oldEns[k];
+        if (Array.isArray(v)) {
+          if (v.length > 0 && typeof v[0] === 'string') {
+            newEns[k] = { unlocked: true, enchantment: v[0] };
+          }
+        } else if (typeof v === 'string' && v) {
+          newEns[k] = { unlocked: true, enchantment: v };
+        } else if (v && typeof v === 'object') {
+          newEns[k] = {
+            unlocked: v.unlocked === true || !!v.enchantment,
+            enchantment: v.enchantment,
+          };
+        }
+      }
+      // If old save had the global flag on but no specific weapon enchantments,
+      // unlock whichever weapon was equipped at the time.
+      if (parsed.enchantmentsUnlocked === true && parsed.weapon && parsed.weapon !== 'Unarmed' && !newEns[parsed.weapon]) {
+        newEns[parsed.weapon] = { unlocked: true };
+      }
+      parsed.weaponEnchantments = newEns;
+      delete parsed.enchantmentsUnlocked;
+      // Normalize: old saves equipped weapons via dropdown without removing them
+      // from inventory, so the same weapon could exist in both places. Strip one
+      // copy from inventory if the equipped weapon is present, restoring the
+      // invariant that a weapon is either equipped OR in inventory.
+      if (parsed.weapon && parsed.weapon !== 'Unarmed' && Array.isArray(parsed.inventory)) {
+        const inv = [...parsed.inventory];
+        const idx = inv.findIndex((it: any) => it?.name === parsed.weapon);
+        if (idx >= 0) {
+          const copy = { ...inv[idx], qty: (inv[idx].qty || 0) - 1 };
+          if (copy.qty > 0) inv[idx] = copy;
+          else inv.splice(idx, 1);
+          parsed.inventory = inv;
+        }
+      }
+      // Arquebus and Ballista are inventory-fired items, not equippable weapons.
+      // If an old save had one in the weapon slot (via the removed dropdown),
+      // move it back to inventory so it can be fired again.
+      if (parsed.weapon === 'Arquebus' || parsed.weapon === 'Ballista') {
+        const name = parsed.weapon;
+        const db = ITEM_DATABASE.find(i => i.name === name);
+        parsed.weapon = 'Unarmed';
+        if (Array.isArray(parsed.inventory) && !parsed.inventory.some((it: any) => it?.name === name)) {
+          parsed.inventory = [
+            ...parsed.inventory,
+            {
+              name: db?.name || name,
+              qty: 1,
+              itemKey: db?.key,
+              category: db?.category,
+              note: db?.note,
+            },
+          ];
+        }
+      }
       const loadedState = { ...DEFAULT_STATE, ...parsed };
       loadedState.hp = Math.min(100, Math.max(0, loadedState.hp));
       loadedState.ep = Math.max(0, loadedState.ep);
@@ -673,7 +779,25 @@ export default function App() {
 
   const baseData = CLASS_STATS[state.charClass];
   
-  const getMod = (stat: string) => (state.customMods || []).filter((m: any) => m.stat === stat).reduce((sum: number, m: any) => sum + m.amount, 0);
+  const customWep = (state.customEquips || []).find((e: any) => e.slot === 'weapon' && e.name === state.weapon);
+  const customHead = (state.customEquips || []).find((e: any) => e.slot === 'head' && e.name === state.head);
+  const customBody = (state.customEquips || []).find((e: any) => e.slot === 'body' && e.name === state.body);
+  const customShield = (state.customEquips || []).find((e: any) => e.slot === 'shield' && e.name === state.shield);
+
+  const wData = customWep || WEAPONS[state.weapon] || { damage: 0, attack: 0, speed: 0, properties: '' };
+  const hData = customHead || HEAD_ARMOR[state.head] || { bonus: 0, attack: 0, speed: 0, passive: '' };
+  const bData = customBody || BODY_ARMOR[state.body] || { bonus: 0, attack: 0, speed: 0, passive: '' };
+  const sData = customShield || SHIELD_ARMOR[state.shield] || { bonus: 0, attack: 0, speed: 0, passive: '' };
+
+  const equippedMods = [
+    ...(wData.mods || []),
+    ...(hData.mods || []),
+    ...(bData.mods || []),
+    ...(sData.mods || []),
+    ...(state.customMods || [])
+  ];
+
+  const getMod = (stat: string) => equippedMods.filter((m: any) => m.stat === stat).reduce((sum: number, m: any) => sum + m.amount, 0);
 
   let maxEp = baseData.max_ep;
   
@@ -703,23 +827,18 @@ export default function App() {
     maxSpellSlots = 3;
   }
 
-  const wData = WEAPONS[state.weapon];
-  const hData = HEAD_ARMOR[state.head];
-  const bData = BODY_ARMOR[state.body];
-  const sData = SHIELD_ARMOR[state.shield];
-
-  const totalDef = Math.max(0, hData.bonus + bData.bonus + sData.bonus + getMod('def'));
-  let totalCrit = hData.attack + bData.attack + sData.attack + wData.attack + getMod('crit');
+  const totalDef = Math.max(0, (hData.bonus || 0) + (bData.bonus || 0) + (sData.bonus || 0) + getMod('def'));
+  let totalCrit = (hData.attack || 0) + (bData.attack || 0) + (sData.attack || 0) + (wData.attack || 0) + getMod('crit');
   
   if (state.accessory === 'Lucky Charm') totalCrit += 1;
   if (state.accessory === 'Vessel of Anxiety') totalCrit += 2;
 
-  let armorSpeed = hData.speed + bData.speed + sData.speed;
+  let armorSpeed = (hData.speed || 0) + (bData.speed || 0) + (sData.speed || 0);
   if (['Mage', 'Rogue'].includes(state.charClass)) {
     if (hData.speed < 0) armorSpeed += hData.speed; 
     if (bData.speed < 0) armorSpeed += bData.speed;
   }
-  const totalSpd = armorSpeed + wData.speed + getMod('spd');
+  const totalSpd = armorSpeed + (wData.speed || 0) + getMod('spd');
 
   const epDebuffs = state.ep >= 70 ? { dmg: -16, agi: -7 } :
                     state.ep >= 50 ? { dmg: -12, agi: -5 } :
@@ -729,7 +848,7 @@ export default function App() {
   
   const isDowned = state.ep >= maxEp;
   const die = state.level >= 6 ? 'd20' : 'd6';
-  const baseDmg = wData.damage + (state.level - 1) + getMod('dmg');
+  const baseDmg = (wData.damage || 0) + (state.level - 1) + getMod('dmg');
   const finalDmg = baseDmg + epDebuffs.dmg;
   const levelBonus = state.level > 1 ? ` (+${state.level - 1})` : '';
   const finalAgi = agility + (state.level - 1) + epDebuffs.agi;
@@ -808,6 +927,69 @@ export default function App() {
     setLastRoll(msg);
   };
 
+  // ✦ Custom Skill helpers (level 5 / level 10 "invent a move" milestones)
+  const customSkills: any[] = state.customSkills || [];
+  const hasCustomSkill5 = customSkills.some((s: any) => s.milestone === 5);
+  const hasCustomSkill10 = customSkills.some((s: any) => s.milestone === 10);
+  const showCustomSkillMaker =
+    (state.level === 5 && !hasCustomSkill5) ||
+    (state.level === 10 && !hasCustomSkill10);
+
+  const createCustomSkill = () => {
+    const name = customSkillName.trim();
+    if (!name) return alert('Please enter a skill name.');
+
+    const milestone = state.level === 5 ? 5 : state.level === 10 ? 10 : null;
+    if (!milestone) return;
+
+    if (customSkills.some((s: any) => s.milestone === milestone)) {
+      return alert(`You already created your level ${milestone} custom skill.`);
+    }
+
+    const newSkill = {
+      id: Date.now().toString(),
+      milestone,
+      name,
+      epType: customSkillEpType,
+      epValue: customSkillEpType === 'flat' ? Math.max(0, parseInt(customSkillEpValue, 10) || 0) : 0,
+      description: customSkillDesc.trim(),
+    };
+
+    setState(prev => ({
+      ...prev,
+      customSkills: [...(prev.customSkills || []), newSkill],
+    }));
+
+    setCustomSkillName('');
+    setCustomSkillDesc('');
+    setCustomSkillEpValue('10');
+  };
+
+  const useCustomSkill = (skill: any) => {
+    if (!skill) return;                       // <-- removed `|| skill.used`
+
+    let epGained = 0;
+    let msg = '';
+
+    if (skill.epType === 'flat') {
+      epGained = Math.max(0, skill.epValue || 0);
+      msg = `${skill.name}: +${epGained} EP (flat)`;
+    } else {
+      epGained = rollDice(`1${skill.epType}`);
+      msg = `${skill.name}: Rolled ${epGained} EP (1${skill.epType})`;
+    }
+
+    setState(prev => {
+      const newEp = Math.min(maxEp, prev.ep + epGained);
+      return {
+        ...prev,
+        ep: newEp,
+        // <-- removed the customSkills map that set used: true
+      };
+    });
+    setLastRoll(msg);
+  };
+
   const addItemToInventory = (itemToAdd: any, currentInv: any[]) => {
     let newInv = [...currentInv];
     let remaining = itemToAdd.qty;
@@ -858,9 +1040,54 @@ export default function App() {
     setShowSuggestions(false);
   };
 
+  const unequipWeapon = () => {
+    if (!state.weapon || state.weapon === 'Unarmed') return;
+    const oldWeapon = state.weapon;
+    const dbItem = ITEM_DATABASE.find(i => i.name === oldWeapon);
+    const custom = (state.customEquips || []).find((e: any) => e.name === oldWeapon);
+    const itemToAdd = dbItem
+      ? { name: dbItem.name, qty: 1, key: dbItem.key, category: dbItem.category, note: dbItem.note }
+      : custom
+      ? { name: custom.name, qty: 1, key: custom.name.toLowerCase().replace(/\s+/g, '_'), category: 'weapon', note: 'Custom equipment' }
+      : { name: oldWeapon, qty: 1 };
+    const { newInv, remaining } = addItemToInventory(itemToAdd, state.inventory);
+    if (remaining > 0) {
+      setLastRoll("Inventory full! Cannot unequip.");
+      return;
+    }
+    setState({ ...state, weapon: 'Unarmed', inventory: newInv });
+    setLastRoll(`Unequipped ${oldWeapon}.`);
+  };
+
   const handleUseItem = (index: number) => {
     const item = state.inventory[index];
     const key = item.itemKey || item.name.toLowerCase().replace(/\s+/g, '_');
+
+    // ✦ Enchantment unlock items — these prepare the CURRENTLY EQUIPPED weapon.
+    if (ENCHANTMENT_UNLOCK_KEYS.includes(key)) {
+      if (!state.weapon || state.weapon === 'Unarmed') {
+        setLastRoll(`Equip a weapon first before using ${item.name}.`);
+        return;
+      }
+      const existing = state.weaponEnchantments[state.weapon];
+      if (existing?.unlocked) {
+        setLastRoll(`${state.weapon} is already prepared for enchantment. ${item.name} not consumed.`);
+        return;
+      }
+      let newInv = [...state.inventory];
+      newInv[index].qty -= 1;
+      if (newInv[index].qty <= 0) newInv.splice(index, 1);
+      setState({
+        ...state,
+        inventory: newInv,
+        weaponEnchantments: {
+          ...state.weaponEnchantments,
+          [state.weapon]: { ...(state.weaponEnchantments[state.weapon] || {}), unlocked: true },
+        },
+      });
+      setLastRoll(`✦ ${item.name} used! ${state.weapon} is now ready for a permanent enchantment. Swap to another weapon and use another unlock item to prepare it too.`);
+      return;
+    }
 
     if (key === 'arquebus') {
       let powderCount = 0, pebbleCount = 0, nailCount = 0;
@@ -941,13 +1168,25 @@ export default function App() {
     const dbItem = ITEM_DATABASE.find(i => i.key === key);
     const isBook = item.category === 'book';
 
-    const isHead = !!HEAD_ARMOR[item.name];
-    const isBody = !!BODY_ARMOR[item.name];
-    const isShield = !!SHIELD_ARMOR[item.name];
-    const isWeapon = !!WEAPONS[item.name];
+    const isHead = !!HEAD_ARMOR[item.name] || (state.customEquips || []).some((e: any) => e.slot === 'head' && e.name === item.name);
+    const isBody = !!BODY_ARMOR[item.name] || (state.customEquips || []).some((e: any) => e.slot === 'body' && e.name === item.name);
+    const isShield = !!SHIELD_ARMOR[item.name] || (state.customEquips || []).some((e: any) => e.slot === 'shield' && e.name === item.name);
+    const isWeapon = !!WEAPONS[item.name] || (state.customEquips || []).some((e: any) => e.slot === 'weapon' && e.name === item.name);
     const isAccessory = (item.category === 'charm' || item.category === 'equipment') && !isHead && !isBody && !isShield && !isWeapon;
 
     if (isHead || isBody || isShield || isWeapon || isAccessory) {
+      // Prevent no-op equips (especially for weapons: they must be swapped via a different weapon).
+      const currentlyEquipped =
+        isHead ? newHead :
+        isBody ? newBody :
+        isShield ? newShield :
+        isWeapon ? newWeapon :
+        newAccessory;
+      if (currentlyEquipped === item.name) {
+        setLastRoll(`${item.name} is already equipped.`);
+        return;
+      }
+
       let oldItemName = 'None';
       let slotName = '';
       
@@ -961,9 +1200,16 @@ export default function App() {
 
       if (oldItemName && oldItemName !== 'None' && oldItemName !== 'Unarmed') {
         const oldDbItem = ITEM_DATABASE.find(i => i.name === oldItemName);
-        const itemToAdd = oldDbItem 
-          ? { name: oldDbItem.name, qty: 1, key: oldDbItem.key, category: oldDbItem.category, note: oldDbItem.note }
-          : { name: oldItemName, qty: 1 }; 
+        const oldCustom = (state.customEquips || []).find((e: any) => e.name === oldItemName);
+        
+        let itemToAdd;
+        if (oldDbItem) {
+          itemToAdd = { name: oldDbItem.name, qty: 1, key: oldDbItem.key, category: oldDbItem.category, note: oldDbItem.note };
+        } else if (oldCustom) {
+          itemToAdd = { name: oldCustom.name, qty: 1, key: oldCustom.name.toLowerCase().replace(/\s+/g, '_'), category: oldCustom.slot === 'weapon' ? 'weapon' : 'armor', note: 'Custom equipment' };
+        } else {
+          itemToAdd = { name: oldItemName, qty: 1 };
+        }
           
         const { newInv: invWithOld } = addItemToInventory(itemToAdd, newInv);
         newInv = invWithOld;
@@ -1090,7 +1336,6 @@ export default function App() {
     }
     if (!canCraft) return alert("Missing ingredients!");
 
-    // --- BYPASS PUZZLE FOR ARTIFICERS ---
     if (state.charClass === 'Artificer') {
       let tempInv = JSON.parse(JSON.stringify(state.inventory));
       for (const ing of recipe.ingredients) {
@@ -1123,7 +1368,6 @@ export default function App() {
       setState({ ...state, inventory: finalInv });
       return; 
     }
-    // -------------------------------------
 
     setCraftingRecipe(recipe);
     const isSimple = recipe.isSimple;
@@ -1334,7 +1578,17 @@ export default function App() {
     );
   };
 
-  const suggestions = showSuggestions ? searchItems(itemNameInput) : [];
+  const allSuggestions = [...ITEM_DATABASE, ...(state.customItems || []), ...(state.customEquips || [])];
+
+  const getSuggestions = (query: string) => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return allSuggestions
+      .filter(item => item.name.toLowerCase().includes(q))
+      .slice(0, 6);
+  };
+
+  const suggestions = showSuggestions ? getSuggestions(itemNameInput) : [];
   const resolvedPreview = itemNameInput.trim() ? resolveItem(itemNameInput) : null;
   const willRename =
     resolvedPreview &&
@@ -1343,7 +1597,6 @@ export default function App() {
   const accItem = ITEM_DATABASE.find(i => i.name === state.accessory);
   const isCharmEquipped = accItem && accItem.category === 'charm';
 
-  // Handlers for Custom Mods
   const addCustomMod = () => {
     const name = modNameInput.trim() || 'Custom Effect';
     const stat = modStatInput;
@@ -1362,6 +1615,72 @@ export default function App() {
 
   const removeCustomMod = (id: string) => {
     setState({ ...state, customMods: (state.customMods || []).filter((m: any) => m.id !== id) });
+  };
+
+  const handleCreateCustom = () => {
+    const name = customName.trim();
+    if (!name) return alert("Please enter a name.");
+
+    if (makerType === 'item') {
+      const newItem = { key: name.toLowerCase().replace(/\s+/g, '_'), name, category: 'consumable', note: customDesc.trim() };
+      setState({ 
+        ...state, 
+        customItems: [...(state.customItems || []), newItem],
+        inventory: [...state.inventory, { name: newItem.name, qty: 1, itemKey: newItem.key, category: newItem.category, note: newItem.note }]
+      });
+    } else {
+      const newEquip = {
+        name,
+        slot: equipSlot,
+        damage: equipSlot === 'weapon' ? (parseInt(equipDmg) || 0) : 0,
+        attack: equipSlot === 'weapon' ? (parseInt(equipCrit) || 0) : 0,
+        bonus: (equipSlot === 'head' || equipSlot === 'body' || equipSlot === 'shield') ? (parseInt(equipDef) || 0) : 0,
+        speed: 0,
+        properties: '',
+        passive: '',
+        note: 'Custom equipment',
+        mods: equipMods
+      };
+      setState({
+        ...state,
+        customEquips: [...(state.customEquips || []), newEquip],
+        inventory: [...state.inventory, { name: newEquip.name, qty: 1, itemKey: name.toLowerCase().replace(/\s+/g, '_'), category: equipSlot === 'weapon' ? 'weapon' : 'armor', note: 'Custom equipment' }]
+      });
+    }
+
+    setCustomName('');
+    setCustomDesc('');
+    setEquipDmg('0');
+    setEquipCrit('0');
+    setEquipDef('0');
+    setEquipMods([]);
+  };
+
+  const addEquipMod = () => {
+    const amount = parseInt(tempModAmount, 10);
+    if (isNaN(amount)) return;
+    setEquipMods([...equipMods, { stat: tempModStat, amount }]);
+    setTempModAmount('0');
+  };
+
+  const removeEquipMod = (index: number) => {
+    setEquipMods(equipMods.filter((_, i) => i !== index));
+  };
+
+  // Per-weapon enchantment helpers
+  const currentWeaponEns = (state.weaponEnchantments || {})[state.weapon];
+  const isCurrentWeaponUnlocked = currentWeaponEns?.unlocked === true;
+  const currentEnchantmentKey = currentWeaponEns?.enchantment || null;
+  const currentEnchantmentData = currentEnchantmentKey
+    ? ENCHANTMENTS.find(e => e.key === currentEnchantmentKey) || null
+    : null;
+
+  // Helper: is a given inventory item usable via the Use button?
+  const isItemUsable = (it: any) => {
+    const cat = it.category || '';
+    if (['consumable', 'equipment', 'book', 'charm', 'weapon', 'shield', 'armor'].includes(cat)) return true;
+    const k = it.itemKey || it.name.toLowerCase().replace(/\s+/g, '_');
+    return ENCHANTMENT_UNLOCK_KEYS.includes(k);
   };
 
   return (
@@ -1605,28 +1924,52 @@ export default function App() {
             <div className={cardStyle}>
               <h2 className="text-sm font-bold border-b border-gray-300 pb-2 mb-2">Equipment</h2>
               <div className="grid grid-cols-2 gap-3">
+                {/* Weapon is equip-only via Inventory (no dropdown) */}
                 <div className="flex flex-col col-span-2">
-                  <label className={labelStyle}>Weapon</label>
-                  <select className={inputStyle} value={state.weapon} onChange={e => setState({...state, weapon: e.target.value})}>
-                    {Object.keys(WEAPONS).map(w => <option key={w}>{w}</option>)}
-                  </select>
+                  <label className={labelStyle}>
+                    Weapon
+                    {isCurrentWeaponUnlocked && currentEnchantmentData && (
+                      <span className="text-purple-600 ml-1" title="Enchanted">✦</span>
+                    )}
+                  </label>
+                  <div className="flex gap-2">
+                    <div className="flex-1 bg-gray-50 border border-gray-300 px-2 py-2 text-sm min-h-[38px] flex items-center">
+                      <span className="font-bold">{state.weapon || 'Unarmed'}</span>
+                    </div>
+                    <button
+                      onClick={unequipWeapon}
+                      disabled={!state.weapon || state.weapon === 'Unarmed'}
+                      className={`px-3 py-1 text-xs font-bold border whitespace-nowrap ${
+                        state.weapon && state.weapon !== 'Unarmed'
+                          ? 'bg-gray-200 hover:bg-gray-300 border-gray-400 text-gray-700'
+                          : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
+                      }`}
+                    >
+                      Unequip
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-gray-500 mt-1">Equip / swap weapons by using them in the Inventory tab.</p>
                 </div>
+
                 <div className="flex flex-col">
                   <label className={labelStyle}>Head</label>
                   <select className={inputStyle} value={state.head} onChange={e => setState({...state, head: e.target.value})}>
                     {Object.keys(HEAD_ARMOR).map(a => <option key={a}>{a}</option>)}
+                    {(state.customEquips || []).filter((e: any) => e.slot === 'head').map((e: any) => <option key={e.name}>{e.name}</option>)}
                   </select>
                 </div>
                 <div className="flex flex-col">
                   <label className={labelStyle}>Body</label>
                   <select className={inputStyle} value={state.body} onChange={e => setState({...state, body: e.target.value})}>
                     {Object.keys(BODY_ARMOR).map(a => <option key={a}>{a}</option>)}
+                    {(state.customEquips || []).filter((e: any) => e.slot === 'body').map((e: any) => <option key={e.name}>{e.name}</option>)}
                   </select>
                 </div>
                 <div className="flex flex-col col-span-2">
                   <label className={labelStyle}>Shield</label>
                   <select className={inputStyle} value={state.shield} onChange={e => setState({...state, shield: e.target.value})}>
                     {Object.keys(SHIELD_ARMOR).map(a => <option key={a}>{a}</option>)}
+                    {(state.customEquips || []).filter((e: any) => e.slot === 'shield').map((e: any) => <option key={e.name}>{e.name}</option>)}
                   </select>
                 </div>
                 <div className="flex flex-col col-span-2">
@@ -1678,6 +2021,51 @@ export default function App() {
                   </button>
                 </div>
               </div>
+
+              {/* ✦ Weapon Enchantments — shown only when the CURRENTLY equipped weapon has been prepared */}
+              {isCurrentWeaponUnlocked && (
+                <div className="mt-3 pt-3 border-t border-gray-200">
+                  <h3 className="text-sm font-bold text-purple-700 mb-2">✦ Weapon Enchantments</h3>
+                  <p className="text-[11px] text-gray-600 mb-2">
+                    On <span className="font-bold text-purple-700">{state.weapon}</span> (max 1, permanent):
+                  </p>
+                  {currentEnchantmentData ? (
+                    <div className="mb-2 bg-purple-50 border border-purple-200 p-2">
+                      <p className="text-xs text-purple-700">
+                        ✦ <span className="font-bold">{currentEnchantmentData.name}</span> — {currentEnchantmentData.desc}
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-xs text-gray-500 mb-2 italic">No enchantment applied yet.</p>
+                      <div className="flex flex-wrap gap-1">
+                        {ENCHANTMENTS.map(en => (
+                          <button
+                            key={en.key}
+                            title={en.desc}
+                            onClick={() => {
+                              if (!confirm(`Permanently enchant ${state.weapon} with "${en.name}"? This cannot be undone — a weapon can only ever hold one enchantment.`)) return;
+                              setState(prev => ({
+                                ...prev,
+                                weaponEnchantments: {
+                                  ...prev.weaponEnchantments,
+                                  [prev.weapon]: {
+                                    unlocked: true,
+                                    enchantment: en.key,
+                                  },
+                                },
+                              }));
+                            }}
+                            className="text-[10px] bg-purple-100 hover:bg-purple-200 border border-purple-400 text-purple-700 font-bold px-2 py-1"
+                          >
+                            + {en.name}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="bg-white border border-gray-300 p-4 flex justify-between items-center">
@@ -1692,17 +2080,39 @@ export default function App() {
 
             <div className="bg-white border border-gray-300 p-4 text-xs space-y-1">
               <h2 className="text-sm font-bold border-b border-gray-300 pb-2 mb-2">Equipped Properties</h2>
-              {wData.properties && <p><span className="font-bold">Weapon:</span> {wData.properties}</p>}
+              {(wData.properties || (isCurrentWeaponUnlocked && currentEnchantmentData)) && (
+                <p>
+                  <span className={`font-bold ${isCurrentWeaponUnlocked && currentEnchantmentData ? 'text-purple-700' : ''}`}>
+                    Weapon:
+                  </span>{' '}
+                  {wData.properties || state.weapon}
+                  {isCurrentWeaponUnlocked && currentEnchantmentData && (
+                    <span className="text-purple-600 ml-1 font-bold">✦ Enchanted</span>
+                  )}
+                </p>
+              )}
               {hData.passive && <p><span className="font-bold">Head:</span> {hData.passive}</p>}
               {bData.passive && <p><span className="font-bold">Body:</span> {bData.passive}</p>}
               {sData.passive && <p><span className="font-bold">Shield:</span> {sData.passive}</p>}
               
+              {wData.mods && wData.mods.length > 0 && <p><span className="font-bold">Weapon Mods:</span> {wData.mods.map((m: any) => `${m.amount > 0 ? '+' : ''}${m.amount} ${m.stat}`).join(', ')}</p>}
+              {hData.mods && hData.mods.length > 0 && <p><span className="font-bold">Head Mods:</span> {hData.mods.map((m: any) => `${m.amount > 0 ? '+' : ''}${m.amount} ${m.stat}`).join(', ')}</p>}
+              {bData.mods && bData.mods.length > 0 && <p><span className="font-bold">Body Mods:</span> {bData.mods.map((m: any) => `${m.amount > 0 ? '+' : ''}${m.amount} ${m.stat}`).join(', ')}</p>}
+              {sData.mods && sData.mods.length > 0 && <p><span className="font-bold">Shield Mods:</span> {sData.mods.map((m: any) => `${m.amount > 0 ? '+' : ''}${m.amount} ${m.stat}`).join(', ')}</p>}
+
+              {isCurrentWeaponUnlocked && currentEnchantmentData && (
+                <div className="text-purple-700 pt-1">
+                  <p className="font-bold">Weapon Enchantment:</p>
+                  <p className="ml-2">✦ <span className="font-bold">{currentEnchantmentData.name}</span>: {currentEnchantmentData.desc}</p>
+                </div>
+              )}
+
               {(() => {
                 const accData = ITEM_DATABASE.find(i => i.name === state.accessory);
                 return accData?.note ? <p><span className="font-bold">Accessory:</span> {accData.note}</p> : null;
               })()}
 
-              {(!wData.properties && !hData.passive && !bData.passive && !sData.passive && !ITEM_DATABASE.find(i => i.name === state.accessory)?.note) && (
+              {(!wData.properties && !hData.passive && !bData.passive && !sData.passive && !ITEM_DATABASE.find(i => i.name === state.accessory)?.note && (!wData.mods || wData.mods.length === 0) && !(isCurrentWeaponUnlocked && currentEnchantmentData)) && (
                 <p className="text-gray-500 italic">No special properties on current equipment.</p>
               )}
             </div>
@@ -1726,28 +2136,42 @@ export default function App() {
         {tab === 'inventory' && (
           <div className="space-y-4">
             <h2 className="text-lg font-bold border-b border-gray-300 pb-2">Inventory ({state.inventory.length}/10)</h2>
+            <p className="text-[10px] text-gray-500 -mt-2">Use a weapon to equip it. Use a Shimmering Sandpaper or Vessel of a Soul to prep your current weapon for an enchantment.</p>
             <div className="bg-white border border-gray-300">
               {state.inventory.length === 0 ? (
                 <p className="text-gray-500 text-sm p-4 text-center">Inventory is empty.</p>
               ) : (
                 state.inventory.map((item, i) => {
-                  const isUsable = ['consumable', 'equipment', 'book', 'charm', 'weapon', 'shield', 'armor'].includes(item.category || '');
+                  const usable = isItemUsable(item);
+                  const enchantData = (state.weaponEnchantments || {})[item.name];
+                  const hasEnchant = !!enchantData?.enchantment;
+                  const isEquippedWeapon = item.name === state.weapon && !!item.category && ['weapon'].includes(item.category);
                   return (
                     <div key={i} className="flex justify-between items-start p-3 border-b border-gray-200 last:border-0">
                       <div className="pr-3 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-bold">{item.name}</span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`text-sm font-bold ${isEquippedWeapon ? 'text-blue-700' : ''}`}>{item.name}</span>
                           <span className="text-gray-500 text-xs">x{item.qty}</span>
                           {item.category && (
                             <span className="text-[9px] uppercase tracking-wide text-gray-500 border border-gray-300 px-1 leading-tight">
                               {item.category}
                             </span>
                           )}
+                          {hasEnchant && (
+                            <span className="text-[9px] uppercase tracking-wide text-purple-600 border border-purple-400 px-1 leading-tight font-bold">
+                              ✦ Enchanted
+                            </span>
+                          )}
+                          {isEquippedWeapon && (
+                            <span className="text-[9px] uppercase tracking-wide text-blue-600 border border-blue-400 px-1 leading-tight font-bold">
+                              Equipped
+                            </span>
+                          )}
                         </div>
                         {item.note && <p className="text-[10px] text-gray-500 mt-0.5 leading-snug">{item.note}</p>}
                       </div>
                       <div className="flex gap-2 shrink-0">
-                        {isUsable && (
+                        {usable && (
                           <button 
                             className="bg-blue-100 hover:bg-blue-200 border border-blue-400 text-blue-700 font-bold px-3 py-1 text-xs" 
                             onClick={() => handleUseItem(i)}
@@ -1788,9 +2212,9 @@ export default function App() {
                   />
                   {showSuggestions && suggestions.length > 0 && (
                     <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-400 shadow-lg z-30 max-h-56 overflow-y-auto">
-                      {suggestions.map(s => (
+                      {suggestions.map((s: any) => (
                         <button
-                          key={s.key}
+                          key={s.key || s.name}
                           type="button"
                           onMouseDown={e => e.preventDefault()}
                           onClick={() => { setItemNameInput(s.name); setShowSuggestions(false); }}
@@ -1798,7 +2222,7 @@ export default function App() {
                         >
                           <div className="flex justify-between items-center gap-2">
                             <span className="font-bold text-gray-900">{s.name}</span>
-                            <span className="text-[9px] uppercase text-gray-500 shrink-0">{s.category}</span>
+                            <span className="text-[9px] uppercase text-gray-500 shrink-0">{s.category || s.slot}</span>
                           </div>
                           {s.note && <p className="text-[10px] text-gray-500 mt-0.5 leading-snug">{s.note}</p>}
                         </button>
@@ -1831,6 +2255,107 @@ export default function App() {
                   Known items auto-fill canonical names &amp; metadata.
                 </p>
               )}
+            </div>
+
+            {/* Custom Creator */}
+            <div className="bg-white border border-gray-300 p-4 space-y-3">
+              <h3 className="text-sm font-bold">Custom Creator</h3>
+              
+              <div className="flex gap-2 mb-2">
+                <button 
+                  onClick={() => setMakerType('item')}
+                  className={`flex-1 py-1 text-xs font-bold border ${makerType === 'item' ? 'bg-blue-100 border-blue-400 text-blue-700' : 'bg-gray-100 border-gray-300 text-gray-600'}`}
+                >
+                  Item
+                </button>
+                <button 
+                  onClick={() => setMakerType('equip')}
+                  className={`flex-1 py-1 text-xs font-bold border ${makerType === 'equip' ? 'bg-blue-100 border-blue-400 text-blue-700' : 'bg-gray-100 border-gray-300 text-gray-600'}`}
+                >
+                  Equipment
+                </button>
+              </div>
+
+              <input
+                className={inputStyle}
+                placeholder="Name"
+                value={customName}
+                onChange={e => setCustomName(e.target.value)}
+              />
+
+              {makerType === 'item' ? (
+                <textarea
+                  className={`${inputStyle} h-16 resize-none`}
+                  placeholder="Description"
+                  value={customDesc}
+                  onChange={e => setCustomDesc(e.target.value)}
+                />
+              ) : (
+                <>
+                  <select
+                    className={inputStyle}
+                    value={equipSlot}
+                    onChange={e => setEquipSlot(e.target.value as any)}
+                  >
+                    <option value="weapon">Weapon</option>
+                    <option value="head">Head Armor</option>
+                    <option value="body">Body Armor</option>
+                    <option value="shield">Shield</option>
+                  </select>
+
+                  {equipSlot === 'weapon' ? (
+                    <div className="flex gap-2">
+                      <div className="flex-1 flex flex-col">
+                        <label className={labelStyle}>Damage Bonus</label>
+                        <input type="number" className={inputStyle} value={equipDmg} onChange={e => setEquipDmg(e.target.value)} />
+                      </div>
+                      <div className="flex-1 flex flex-col">
+                        <label className={labelStyle}>Crit Bonus</label>
+                        <input type="number" className={inputStyle} value={equipCrit} onChange={e => setEquipCrit(e.target.value)} />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col">
+                      <label className={labelStyle}>Defense Bonus</label>
+                      <input type="number" className={inputStyle} value={equipDef} onChange={e => setEquipDef(e.target.value)} />
+                    </div>
+                  )}
+
+                  {/* Modifiers */}
+                  <div className="border-t border-gray-200 pt-2 mt-2">
+                    <label className={labelStyle}>Stat Modifiers</label>
+                    <div className="space-y-1 mb-2">
+                      {equipMods.map((mod: any, i: number) => (
+                        <div key={i} className="flex justify-between items-center text-xs bg-gray-50 p-1 border border-gray-200">
+                          <span>{mod.amount > 0 ? '+' : ''}{mod.amount} {mod.stat}</span>
+                          <button onClick={() => removeEquipMod(i)} className="text-red-600 font-bold px-1">&times;</button>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex gap-1">
+                      <select className="flex-1 text-xs border border-gray-400 p-1" value={tempModStat} onChange={e => setTempModStat(e.target.value)}>
+                        <option value="maxEp">Max EP</option>
+                        <option value="physEnd">Phys End</option>
+                        <option value="magEnd">Mag End</option>
+                        <option value="agility">Agility</option>
+                        <option value="def">Defense</option>
+                        <option value="crit">Crit</option>
+                        <option value="spd">Speed</option>
+                        <option value="dmg">Damage</option>
+                      </select>
+                      <input type="number" className="w-16 text-xs border border-gray-400 p-1" value={tempModAmount} onChange={e => setTempModAmount(e.target.value)} />
+                      <button onClick={addEquipMod} className="bg-gray-200 border border-gray-400 px-2 text-xs font-bold hover:bg-gray-300">Add</button>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <button 
+                onClick={handleCreateCustom}
+                className="w-full mt-2 bg-green-600 text-white font-bold py-2 text-sm hover:bg-green-700"
+              >
+                Create {makerType === 'item' ? 'Item' : 'Equipment'}
+              </button>
             </div>
 
             <h2 className="text-lg font-bold border-b border-gray-300 pb-2 mt-6">Crafting</h2>
@@ -1909,6 +2434,89 @@ export default function App() {
         {tab === 'skills' && (
           <div className="space-y-4">
             <h2 className="text-lg font-bold border-b border-gray-300 pb-2">Scroll Skills</h2>
+
+            {/* ✦ Custom Skill Maker (available at level 5 and level 10, once per milestone) */}
+            {showCustomSkillMaker && (
+              <div className="bg-purple-50 border border-purple-300 p-4 space-y-3">
+                <h3 className="text-sm font-bold text-purple-700">
+                  ✦ Custom Skill Maker (Level {state.level === 5 ? 5 : 10})
+                </h3>
+                <p className="text-[10px] text-purple-700">
+                  Design one signature move. Using it adds EP to you — the exhaust cost of your own invention.
+                </p>
+                <input
+                  className={inputStyle}
+                  placeholder="Skill Name"
+                  value={customSkillName}
+                  onChange={e => setCustomSkillName(e.target.value)}
+                />
+                <div className="flex gap-2">
+                  <select
+                    className={`${inputStyle} flex-1`}
+                    value={customSkillEpType}
+                    onChange={e => setCustomSkillEpType(e.target.value as any)}
+                  >
+                    <option value="d4">d4 EP</option>
+                    <option value="d6">d6 EP</option>
+                    <option value="d12">d12 EP</option>
+                    <option value="d20">d20 EP</option>
+                    <option value="flat">Flat EP</option>
+                  </select>
+                  {customSkillEpType === 'flat' && (
+                    <input
+                      type="number"
+                      className={`${inputStyle} w-24`}
+                      placeholder="EP"
+                      value={customSkillEpValue}
+                      onChange={e => setCustomSkillEpValue(e.target.value)}
+                    />
+                  )}
+                </div>
+                <textarea
+                  className={`${inputStyle} h-16 resize-none`}
+                  placeholder="What does this skill do?"
+                  value={customSkillDesc}
+                  onChange={e => setCustomSkillDesc(e.target.value)}
+                />
+                <button
+                  onClick={createCustomSkill}
+                  className="w-full bg-purple-600 text-white font-bold py-2 text-sm hover:bg-purple-700"
+                >
+                  Create Custom Skill
+                </button>
+              </div>
+            )}
+
+            {/* Created custom skills */}
+            {customSkills.length > 0 && (
+              <div>
+                <h3 className="text-sm font-bold text-purple-600 mb-2 uppercase tracking-wide">Custom Skills</h3>
+                <div className="bg-purple-50 border border-purple-200 px-4 shadow-sm">
+                  {customSkills.map((sk: any) => (
+                    <div key={sk.id} className="flex justify-between items-center py-3 border-b border-purple-100 last:border-0">
+                      <div className="pr-3">
+                        <p className="font-bold text-sm text-purple-700">
+                          {sk.name}{' '}
+                          <span className="text-[10px] font-normal">(Lv {sk.milestone})</span>
+                        </p>
+                        <p className="text-xs text-gray-600 mt-0.5">
+                          {sk.epType === 'flat' ? `${sk.epValue} EP` : `1${sk.epType} EP`} - {sk.description || 'No description.'}
+                        </p>
+                      </div>
+                      <div className="flex gap-2 shrink-0">
+                        <button
+                          onClick={() => useCustomSkill(sk)}
+                          className="bg-purple-100 hover:bg-purple-200 border border-purple-400 text-purple-700 font-bold px-3 py-1 text-xs"
+                        >
+                          Use
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {state.learnedSkills.length > 0 && (
               <div className="mb-6">
                 <h3 className="text-sm font-bold text-green-600 mb-2 uppercase tracking-wide">Learned Skills</h3>

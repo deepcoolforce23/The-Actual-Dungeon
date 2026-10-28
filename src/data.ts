@@ -49,8 +49,8 @@ export const SHIELD_ARMOR: Record<string, any> = {
 
 export const ALL_REACTIONS: Record<string, any> = {
   // Class Reactions
-  'Parry': { name: 'Parry', ep: '4', type: 'Physical', note: 'Highest wep atk roll to negate dmg.' },
-  'Guard': { name: 'Guard', ep: '3', type: 'Physical', note: 'Absorb dmg for ally.' },
+  'Parry': { name: 'Parry', ep: '4', type: 'Physical', note: 'Coinflip: Heads = negate dmg and get free hit (EP applies still). Else, take dmg. Not a Clash, triggers first.' },
+  'Guard': { name: 'Guard', ep: '2', type: 'Physical', note: 'Absorb dmg for ally.' },
   'Dodge': { name: 'Dodge', ep: '4', type: 'Physical', note: 'Coinflip: Heads = negate dmg. Tails = take dmg, +4 EP.' },
   'Dash': { name: 'Dash', ep: '5', type: 'Physical', note: 'Disadvantage equal to Agility.' },
   'Rummage': { name: 'Rummage', ep: '0', type: 'Physical', note: 'Collect materials.' },
