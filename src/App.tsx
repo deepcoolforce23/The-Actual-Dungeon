@@ -658,7 +658,6 @@ export default function App() {
       
       if (latestVersion !== currentVersion) {
         const zipAsset = latestRelease.assets.find((asset: any) => asset.name.endsWith('.zip'));
-        
         if (zipAsset) {
           const userConfirmed = window.confirm(`New update (v${latestVersion}) is available! Download now?`);
           if (userConfirmed) {
@@ -667,6 +666,17 @@ export default function App() {
               version: latestVersion,
             });
             await CapacitorUpdater.set(bundle);
+          }
+        }
+        if (zipAsset) {
+          const userConfirmed = window.confirm(`New update (v${latestVersion}) is available! Download now?`);
+          if (userConfirmed) {
+            const bundle = await CapacitorUpdater.download({
+              url: zipAsset.browser_download_url,
+              version: latestVersion,
+            });
+            await CapacitorUpdater.set(bundle);
+            await CapacitorUpdater.reload();   // <-- still needed
           }
         }
       }
