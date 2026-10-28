@@ -644,7 +644,7 @@ export default function App() {
 
   const checkForOTAUpdate = async () => {
     try {
-      const GITHUB_REPO = 'YOUR_GITHUB_USERNAME/YOUR_REPO_NAME';
+      const GITHUB_REPO = 'deepcoolforce23/The-Actual-Dungeon';
       
       const response = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`);
       if (!response.ok) return;
