@@ -243,7 +243,8 @@ const DEFAULT_STATE = {
   inventory: [] as any[], effects: [] as string[], notes: "",
   infectedEndTime: 0,
   activeCurse: null as string | null,
-  learnedRecipes: ['torch', 'wooden_shield'] as string[]
+  learnedRecipes: ['torch', 'wooden_shield'] as string[],
+  customMods: [] as any[]
 };
 
 type ItemCategory =
@@ -577,6 +578,11 @@ export default function App() {
   const [itemQtyInput, setItemQtyInput] = useState('1');
   const [showSuggestions, setShowSuggestions] = useState(false);
 
+  // Custom Mods Form
+  const [modNameInput, setModNameInput] = useState('');
+  const [modStatInput, setModStatInput] = useState('def');
+  const [modAmountInput, setModAmountInput] = useState('-1');
+
   // --- OTA UPDATE LOGIC ---
   useEffect(() => {
     // Tells Capacitor the app loaded successfully (prevents rollback)
@@ -648,6 +654,7 @@ export default function App() {
         delete parsed.skills;
       }
       if (!parsed.learnedRecipes) parsed.learnedRecipes = ['torch', 'wooden_shield'];
+      if (!parsed.customMods) parsed.customMods = [];
       
       const loadedState = { ...DEFAULT_STATE, ...parsed };
       loadedState.hp = Math.min(100, Math.max(0, loadedState.hp));
@@ -666,23 +673,34 @@ export default function App() {
 
   const baseData = CLASS_STATS[state.charClass];
   
-  let maxEp = baseData.max_ep;
-  let physEnd = baseData.phys_end;
-  let magEnd = baseData.mag_end;
-  let agility = baseData.agility;
-  let maxSpellSlots = 3;
+  const getMod = (stat: string) => (state.customMods || []).filter((m: any) => m.stat === stat).reduce((sum: number, m: any) => sum + m.amount, 0);
 
+  let maxEp = baseData.max_ep;
+  
   if (state.activeCurse === 'Bound to Darkness') {
     maxEp = 75;
   } else if (state.activeCurse === 'Indelible Fatigue') {
     maxEp = 100;
-    magEnd -= 2;
-    physEnd -= 2;
   } else if (state.activeCurse === 'Blinding Light') {
     maxEp = 60;
   } else if (state.activeCurse === 'Closed Mind') {
     maxEp = 100;
+  }
+
+  maxEp = Math.max(1, maxEp + getMod('maxEp'));
+
+  let physEnd = baseData.phys_end + getMod('physEnd');
+  let magEnd = baseData.mag_end + getMod('magEnd');
+  let agility = baseData.agility + getMod('agility');
+  let maxSpellSlots = 1;
+
+  if (state.activeCurse === 'Indelible Fatigue') {
+    magEnd -= 2;
+    physEnd -= 2;
+  } else if (state.activeCurse === 'Closed Mind') {
     maxSpellSlots = 1;
+  } else {
+    maxSpellSlots = 3;
   }
 
   const wData = WEAPONS[state.weapon];
@@ -690,8 +708,8 @@ export default function App() {
   const bData = BODY_ARMOR[state.body];
   const sData = SHIELD_ARMOR[state.shield];
 
-  const totalDef = hData.bonus + bData.bonus + sData.bonus;
-  let totalCrit = hData.attack + bData.attack + sData.attack + wData.attack;
+  const totalDef = Math.max(0, hData.bonus + bData.bonus + sData.bonus + getMod('def'));
+  let totalCrit = hData.attack + bData.attack + sData.attack + wData.attack + getMod('crit');
   
   if (state.accessory === 'Lucky Charm') totalCrit += 1;
   if (state.accessory === 'Vessel of Anxiety') totalCrit += 2;
@@ -701,7 +719,7 @@ export default function App() {
     if (hData.speed < 0) armorSpeed += hData.speed; 
     if (bData.speed < 0) armorSpeed += bData.speed;
   }
-  const totalSpd = armorSpeed + wData.speed;
+  const totalSpd = armorSpeed + wData.speed + getMod('spd');
 
   const epDebuffs = state.ep >= 70 ? { dmg: -16, agi: -7 } :
                     state.ep >= 50 ? { dmg: -12, agi: -5 } :
@@ -711,7 +729,7 @@ export default function App() {
   
   const isDowned = state.ep >= maxEp;
   const die = state.level >= 6 ? 'd20' : 'd6';
-  const baseDmg = wData.damage + (state.level - 1);
+  const baseDmg = wData.damage + (state.level - 1) + getMod('dmg');
   const finalDmg = baseDmg + epDebuffs.dmg;
   const levelBonus = state.level > 1 ? ` (+${state.level - 1})` : '';
   const finalAgi = agility + (state.level - 1) + epDebuffs.agi;
@@ -1325,6 +1343,27 @@ export default function App() {
   const accItem = ITEM_DATABASE.find(i => i.name === state.accessory);
   const isCharmEquipped = accItem && accItem.category === 'charm';
 
+  // Handlers for Custom Mods
+  const addCustomMod = () => {
+    const name = modNameInput.trim() || 'Custom Effect';
+    const stat = modStatInput;
+    const amount = parseInt(modAmountInput, 10);
+    if (isNaN(amount)) return alert("Please enter a valid number.");
+    
+    const newMod = {
+      id: Date.now().toString(),
+      name,
+      stat,
+      amount
+    };
+    setState({ ...state, customMods: [...(state.customMods || []), newMod] });
+    setModNameInput('');
+  };
+
+  const removeCustomMod = (id: string) => {
+    setState({ ...state, customMods: (state.customMods || []).filter((m: any) => m.id !== id) });
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 font-sans text-gray-900">
       <div className="max-w-md mx-auto p-4 pb-24">
@@ -1909,6 +1948,67 @@ export default function App() {
                    )
                  })}
                </div>
+            </div>
+
+            <h2 className="text-lg font-bold border-b border-gray-300 pb-2 pt-4">Custom Stat Modifiers</h2>
+            <div className="bg-white border border-gray-300 p-4">
+              <div className="space-y-2 mb-4">
+                {(state.customMods || []).map((mod: any) => (
+                  <div key={mod.id} className="flex justify-between items-center border-b border-gray-100 pb-2 last:border-0">
+                    <div>
+                      <p className="text-sm font-bold text-gray-900">{mod.name}</p>
+                      <p className="text-xs text-gray-600">
+                        {mod.amount > 0 ? '+' : ''}{mod.amount} {mod.stat === 'maxEp' ? 'Max EP' : mod.stat === 'physEnd' ? 'Phys End' : mod.stat === 'magEnd' ? 'Mag End' : mod.stat === 'agility' ? 'Agility' : mod.stat === 'def' ? 'Defense' : mod.stat === 'crit' ? 'Crit' : mod.stat === 'spd' ? 'Speed' : 'Damage'}
+                      </p>
+                    </div>
+                    <button onClick={() => removeCustomMod(mod.id)} className="px-3 py-1 text-xs font-bold bg-red-100 hover:bg-red-200 border border-red-400 text-red-700">
+                      Remove
+                    </button>
+                  </div>
+                ))}
+                {(state.customMods || []).length === 0 && (
+                  <p className="text-gray-500 text-sm text-center py-2">No custom modifiers active.</p>
+                )}
+              </div>
+
+              <h3 className="text-sm font-bold mb-2">Add Modifier</h3>
+              <div className="flex flex-col gap-2">
+                <input
+                  className={inputStyle}
+                  placeholder="Effect Name (e.g., Wounded)"
+                  value={modNameInput}
+                  onChange={e => setModNameInput(e.target.value)}
+                />
+                <div className="flex gap-2">
+                  <select
+                    className={inputStyle}
+                    value={modStatInput}
+                    onChange={e => setModStatInput(e.target.value)}
+                  >
+                    <option value="maxEp">Max EP</option>
+                    <option value="physEnd">Phys End</option>
+                    <option value="magEnd">Mag End</option>
+                    <option value="agility">Agility</option>
+                    <option value="def">Defense</option>
+                    <option value="crit">Crit</option>
+                    <option value="spd">Speed</option>
+                    <option value="dmg">Damage</option>
+                  </select>
+                  <input
+                    type="number"
+                    className={`${inputStyle} w-24`}
+                    placeholder="+/-"
+                    value={modAmountInput}
+                    onChange={e => setModAmountInput(e.target.value)}
+                  />
+                  <button
+                    onClick={addCustomMod}
+                    className="bg-blue-600 text-white font-bold px-4 text-sm hover:bg-blue-700"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
