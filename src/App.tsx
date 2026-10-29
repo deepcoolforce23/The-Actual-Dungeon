@@ -241,11 +241,7 @@ const DEFAULT_STATE = {
   customMods: [] as any[],
   customItems: [] as any[],
   customEquips: [] as any[],
-  // Per-weapon enchantment state. Weapon must be "unlocked" (via Shimmering Sandpaper
-  // or Vessel of a Soul) before it can receive its single, permanent enchantment.
   weaponEnchantments: {} as { [weaponName: string]: { unlocked: boolean; enchantment?: string } },
-  // Custom "invent your own move" skills, earned at level 5 and level 10.
-  // Each entry: { id, milestone, name, epType, epValue, description }
   customSkills: [] as any[],
 };
 
@@ -348,7 +344,7 @@ const ITEM_DATABASE: ItemEntry[] = [
   { key: 'scroll_reckless', name: 'Scroll of the Reckless', category: 'book', aliases: ['reckless scroll'], note: 'Learn Double Impact' },
   { key: 'predictions', name: 'Predictions', category: 'book', note: 'Coinflip: learn Visions of the Imminent, else Insanity next battle' },
   { key: 'unseen_boundary', name: 'The Unseen Boundary', category: 'book', note: 'Learn Teleportation' },
-  { key: 'guide_exhaustion', name: 'Guide to Clearing Exhaustion', category: 'book', aliases: ['clearing exhaustion', 'exhaustion guide'], note: 'Learn Momentary Rest' },
+  { key: 'guide_exhaustion', name: 'Guide to Cleared Exhaustion', category: 'book', aliases: ['clearing exhaustion', 'exhaustion guide'], note: 'Learn Momentary Rest' },
   { key: 'black_book', name: 'Black Book', category: 'book', note: 'Coinflip: replace L1/L2 spells with Harming/Injuring, gain Dark Fate' },
   { key: 'emberweaved_grimoire', name: 'Emberweaved Grimoire', category: 'book', aliases: ['ember grimoire'], note: 'Learn Ring of Embers / Concentrated Pyromancy' },
   { key: 'tome_ivy', name: 'Tome of Ivy', category: 'book', aliases: ['ivy tome'], note: 'Learn Spontaneous Poisoning' },
@@ -432,13 +428,6 @@ const ALL_CRAFTING_RECIPES = [
   },
 ];
 
-// ✦ WEAPON ENCHANTMENTS
-// Each weapon can hold exactly ONE enchantment, which is PERMANENT for that weapon
-// (tracked by weapon name). Once applied, it cannot be changed or removed.
-// Each weapon must ALSO be individually "unlocked" by using a Shimmering Sandpaper
-// or Vessel of a Soul on it (via the Inventory tab). Weapons with the same name
-// share enchantment state, since they're the same item type.
-// To add a new enchantment, just append { key, name, desc } here.
 const ENCHANTMENTS = [
   {
     key: 'blazing',
@@ -455,11 +444,8 @@ const ENCHANTMENTS = [
     name: 'Cleaving',
     desc: '+10 damage to Blades. Cause Bleeding for 2 turns on regular attack.',
   },
-  // Add your own below:
-  // { key: 'frostbound', name: 'Frostbound', desc: 'On hit, coinflip to Slow enemy for 1 turn.' },
 ];
 
-// Keys of items that unlock a weapon for enchantment
 const ENCHANTMENT_UNLOCK_KEYS = ['shimmering_sandpaper', 'vessel_soul'];
 
 const searchItems = (query: string): ItemEntry[] => {
@@ -598,7 +584,6 @@ export default function App() {
   const [epStep, setEpStep] = useState(1);
   const [levelStep, setLevelStep] = useState(1);
 
-  // Crafting Minigame State
   const [showPuzzle, setShowPuzzle] = useState(false);
   const [puzzleType, setPuzzleType] = useState<'kurodoko' | 'norinori'>('kurodoko');
   const [puzzleGrid, setPuzzleGrid] = useState<any[][]>([]);
@@ -606,17 +591,14 @@ export default function App() {
   const [puzzleError, setPuzzleError] = useState('');
   const [showHelp, setShowHelp] = useState(false);
 
-  // Controlled Add Item form
   const [itemNameInput, setItemNameInput] = useState('');
   const [itemQtyInput, setItemQtyInput] = useState('1');
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  // Custom Mods Form
   const [modNameInput, setModNameInput] = useState('');
   const [modStatInput, setModStatInput] = useState('def');
   const [modAmountInput, setModAmountInput] = useState('-1');
 
-  // Custom Creator Form
   const [makerType, setMakerType] = useState<'item' | 'equip'>('item');
   const [customName, setCustomName] = useState('');
   const [customDesc, setCustomDesc] = useState('');
@@ -628,7 +610,6 @@ export default function App() {
   const [tempModStat, setTempModStat] = useState('maxEp');
   const [tempModAmount, setTempModAmount] = useState('0');
 
-  // Custom Skill Maker Form (available at level 5 and level 10, once per milestone)
   const [customSkillName, setCustomSkillName] = useState('');
   const [customSkillEpType, setCustomSkillEpType] = useState<'d4' | 'd6' | 'd12' | 'd20' | 'flat'>('d6');
   const [customSkillEpValue, setCustomSkillEpValue] = useState('10');
@@ -671,7 +652,6 @@ export default function App() {
 
       if (latestVersion === currentVersion) return;
 
-      // Skip GitHub's auto-generated "Source code" zip — not a valid Capgo bundle.
       const zipAsset = (latestRelease.assets || []).find(
         (asset: any) =>
           asset.name.toLowerCase().endsWith('.zip') &&
@@ -686,13 +666,19 @@ export default function App() {
         return;
       }
 
+      alert('Step 1/3: starting download...');
       const bundle = await CapacitorUpdater.download({
         url: zipAsset.browser_download_url,
         version: latestVersion,
       });
+
+      alert('Step 2/3: download OK — ' + JSON.stringify(bundle).slice(0, 200));
       await CapacitorUpdater.set(bundle);
+
+      alert('Step 3/3: set OK — reloading now');
       await CapacitorUpdater.reload();
-    } catch (err) {
+    } catch (err: any) {
+      alert('OTA failed: ' + (err?.message || String(err)));
       console.error('OTA Update check failed:', err);
     }
   };
@@ -725,7 +711,6 @@ export default function App() {
       if (!parsed.customEquips) parsed.customEquips = [];
       if (!parsed.customSkills) parsed.customSkills = [];
 
-      // Migrate old enchantment formats to new per-weapon { unlocked, enchantment } shape.
       const oldEns: any = parsed.weaponEnchantments || {};
       const newEns: { [k: string]: { unlocked: boolean; enchantment?: string } } = {};
       for (const k of Object.keys(oldEns)) {
@@ -743,17 +728,11 @@ export default function App() {
           };
         }
       }
-      // If old save had the global flag on but no specific weapon enchantments,
-      // unlock whichever weapon was equipped at the time.
       if (parsed.enchantmentsUnlocked === true && parsed.weapon && parsed.weapon !== 'Unarmed' && !newEns[parsed.weapon]) {
         newEns[parsed.weapon] = { unlocked: true };
       }
       parsed.weaponEnchantments = newEns;
       delete parsed.enchantmentsUnlocked;
-      // Normalize: old saves equipped weapons via dropdown without removing them
-      // from inventory, so the same weapon could exist in both places. Strip one
-      // copy from inventory if the equipped weapon is present, restoring the
-      // invariant that a weapon is either equipped OR in inventory.
       if (parsed.weapon && parsed.weapon !== 'Unarmed' && Array.isArray(parsed.inventory)) {
         const inv = [...parsed.inventory];
         const idx = inv.findIndex((it: any) => it?.name === parsed.weapon);
@@ -764,9 +743,6 @@ export default function App() {
           parsed.inventory = inv;
         }
       }
-      // Arquebus and Ballista are inventory-fired items, not equippable weapons.
-      // If an old save had one in the weapon slot (via the removed dropdown),
-      // move it back to inventory so it can be fired again.
       if (parsed.weapon === 'Arquebus' || parsed.weapon === 'Ballista') {
         const name = parsed.weapon;
         const db = ITEM_DATABASE.find(i => i.name === name);
@@ -949,7 +925,6 @@ export default function App() {
     setLastRoll(msg);
   };
 
-  // ✦ Custom Skill helpers (level 5 / level 10 "invent a move" milestones)
   const customSkills: any[] = state.customSkills || [];
   const hasCustomSkill5 = customSkills.some((s: any) => s.milestone === 5);
   const hasCustomSkill10 = customSkills.some((s: any) => s.milestone === 10);
@@ -1084,7 +1059,6 @@ export default function App() {
     const item = state.inventory[index];
     const key = item.itemKey || item.name.toLowerCase().replace(/\s+/g, '_');
 
-    // ✦ Enchantment unlock items — these prepare the CURRENTLY EQUIPPED weapon.
     if (ENCHANTMENT_UNLOCK_KEYS.includes(key)) {
       if (!state.weapon || state.weapon === 'Unarmed') {
         setLastRoll(`Equip a weapon first before using ${item.name}.`);
@@ -1196,7 +1170,6 @@ export default function App() {
     const isAccessory = (item.category === 'charm' || item.category === 'equipment') && !isHead && !isBody && !isShield && !isWeapon;
 
     if (isHead || isBody || isShield || isWeapon || isAccessory) {
-      // Prevent no-op equips (especially for weapons: they must be swapped via a different weapon).
       const currentlyEquipped =
         isHead ? newHead :
         isBody ? newBody :
@@ -1688,7 +1661,6 @@ export default function App() {
     setEquipMods(equipMods.filter((_, i) => i !== index));
   };
 
-  // Per-weapon enchantment helpers
   const currentWeaponEns = (state.weaponEnchantments || {})[state.weapon];
   const isCurrentWeaponUnlocked = currentWeaponEns?.unlocked === true;
   const currentEnchantmentKey = currentWeaponEns?.enchantment || null;
@@ -1696,7 +1668,6 @@ export default function App() {
     ? ENCHANTMENTS.find(e => e.key === currentEnchantmentKey) || null
     : null;
 
-  // Helper: is a given inventory item usable via the Use button?
   const isItemUsable = (it: any) => {
     const cat = it.category || '';
     if (['consumable', 'equipment', 'book', 'charm', 'weapon', 'shield', 'armor'].includes(cat)) return true;
@@ -1741,7 +1712,6 @@ export default function App() {
           </div>
         )}
 
-        {/* --- CRAFTING PUZZLE MODAL --- */}
         {showPuzzle && craftingRecipe && (
           <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
             <div className="bg-white p-5 rounded-lg w-full max-w-sm relative">
@@ -1829,7 +1799,6 @@ export default function App() {
             </div>
           </div>
         )}
-        {/* -------------------------------------- */}
 
         {tab === 'main' && (
           <div className="space-y-4">
@@ -1946,7 +1915,6 @@ export default function App() {
             <div className={cardStyle}>
               <h2 className="text-sm font-bold border-b border-gray-300 pb-2 mb-2">Equipment</h2>
               <div className="grid grid-cols-2 gap-3">
-                {/* Weapon is equip-only via Inventory (no dropdown) */}
                 <div className="flex flex-col col-span-2">
                   <label className={labelStyle}>
                     Weapon
@@ -2044,7 +2012,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* ✦ Weapon Enchantments — shown only when the CURRENTLY equipped weapon has been prepared */}
               {isCurrentWeaponUnlocked && (
                 <div className="mt-3 pt-3 border-t border-gray-200">
                   <h3 className="text-sm font-bold text-purple-700 mb-2">✦ Weapon Enchantments</h3>
@@ -2158,7 +2125,6 @@ export default function App() {
         {tab === 'inventory' && (
           <div className="space-y-4">
             <h2 className="text-lg font-bold border-b border-gray-300 pb-2">Inventory ({state.inventory.length}/10)</h2>
-            <p className="text-[10px] text-gray-500 -mt-2">Use a weapon to equip it. Use a Shimmering Sandpaper or Vessel of a Soul to prep your current weapon for an enchantment.</p>
             <div className="bg-white border border-gray-300">
               {state.inventory.length === 0 ? (
                 <p className="text-gray-500 text-sm p-4 text-center">Inventory is empty.</p>
@@ -2279,7 +2245,6 @@ export default function App() {
               )}
             </div>
 
-            {/* Custom Creator */}
             <div className="bg-white border border-gray-300 p-4 space-y-3">
               <h3 className="text-sm font-bold">Custom Creator</h3>
               
@@ -2343,7 +2308,6 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* Modifiers */}
                   <div className="border-t border-gray-200 pt-2 mt-2">
                     <label className={labelStyle}>Stat Modifiers</label>
                     <div className="space-y-1 mb-2">
@@ -2457,7 +2421,6 @@ export default function App() {
           <div className="space-y-4">
             <h2 className="text-lg font-bold border-b border-gray-300 pb-2">Scroll Skills</h2>
 
-            {/* ✦ Custom Skill Maker (available at level 5 and level 10, once per milestone) */}
             {showCustomSkillMaker && (
               <div className="bg-purple-50 border border-purple-300 p-4 space-y-3">
                 <h3 className="text-sm font-bold text-purple-700">
@@ -2509,7 +2472,6 @@ export default function App() {
               </div>
             )}
 
-            {/* Created custom skills — reusable forever */}
             {customSkills.length > 0 && (
               <div>
                 <h3 className="text-sm font-bold text-purple-600 mb-2 uppercase tracking-wide">Custom Skills</h3>
