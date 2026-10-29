@@ -1,12 +1,20 @@
 name: Create OTA Web Release
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
+    paths:
+      - 'src/**'
+      - 'package.json'
 
 permissions:
   contents: write
+
+concurrency:
+  group: ota-release
+  cancel-in-progress: false
 
 jobs:
   build-and-release:
@@ -19,6 +27,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
@@ -26,13 +35,16 @@ jobs:
       - name: Build web assets
         run: npm run build
 
-      - name: Zip the dist folder
-        run: |
-          cd dist && zip -r ../www.zip . && cd ..
+      - name: Read version
+        id: pkg
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Create OTA bundle
+        run: npx @capgo/cli@latest bundle zip --path dist
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: www.zip
-          tag_name: v${{ github.run_number }}
+          files: dist.zip
+          tag_name: v${{ steps.pkg.outputs.version }}
           generate_release_notes: true
