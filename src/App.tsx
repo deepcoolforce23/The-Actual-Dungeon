@@ -245,7 +245,7 @@ const DEFAULT_STATE = {
   // or Vessel of a Soul) before it can receive its single, permanent enchantment.
   weaponEnchantments: {} as { [weaponName: string]: { unlocked: boolean; enchantment?: string } },
   // Custom "invent your own move" skills, earned at level 5 and level 10.
-  // Each entry: { id, milestone, name, epType, epValue, description, used }
+  // Each entry: { id, milestone, name, epType, epValue, description }
   customSkills: [] as any[],
 };
 
@@ -643,45 +643,44 @@ export default function App() {
   }, []);
 
   const checkForOTAUpdate = async () => {
+    const GITHUB_REPO = 'deepcoolforce23/The-Actual-Dungeon';
     try {
-      const GITHUB_REPO = 'deepcoolforce23/The-Actual-Dungeon';
-      
       const response = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`);
-      if (!response.ok) return;
-      
-      const latestRelease = await response.json();
-      
-      const currentBundle = await CapacitorUpdater.current();
-      const currentVersion = currentBundle.bundle.version;
-      
-      const latestVersion = latestRelease.tag_name.replace('v', '');
-      
-      if (latestVersion !== currentVersion) {
-        const zipAsset = latestRelease.assets.find((asset: any) => asset.name.endsWith('.zip'));
-        if (zipAsset) {
-          const userConfirmed = window.confirm(`New update (v${latestVersion}) is available! Download now?`);
-          if (userConfirmed) {
-            const bundle = await CapacitorUpdater.download({
-              url: zipAsset.browser_download_url,
-              version: latestVersion,
-            });
-            await CapacitorUpdater.set(bundle);
-          }
-        }
-        if (zipAsset) {
-          const userConfirmed = window.confirm(`New update (v${latestVersion}) is available! Download now?`);
-          if (userConfirmed) {
-            const bundle = await CapacitorUpdater.download({
-              url: zipAsset.browser_download_url,
-              version: latestVersion,
-            });
-            await CapacitorUpdater.set(bundle);
-            await CapacitorUpdater.reload();   // <-- still needed
-          }
-        }
+      if (!response.ok) {
+        console.warn(`OTA: GitHub returned ${response.status}`);
+        return;
       }
+      const latestRelease = await response.json();
+
+      const currentBundle = await CapacitorUpdater.current();
+      const currentVersion = currentBundle?.bundle?.version ?? 'unknown';
+      const latestVersion = (latestRelease.tag_name || '').replace(/^v/, '');
+
+      if (latestVersion === currentVersion) return;
+
+      // Skip GitHub's auto-generated "Source code" zip — not a valid Capgo bundle.
+      const zipAsset = (latestRelease.assets || []).find(
+        (asset: any) =>
+          asset.name.toLowerCase().endsWith('.zip') &&
+          !asset.name.toLowerCase().includes('source')
+      );
+      if (!zipAsset) {
+        console.warn(`OTA: release ${latestRelease.tag_name} has no bundle .zip asset.`);
+        return;
+      }
+
+      if (!window.confirm(`New update (v${latestVersion}) is available!\nAsset: ${zipAsset.name}\n\nDownload now?`)) {
+        return;
+      }
+
+      const bundle = await CapacitorUpdater.download({
+        url: zipAsset.browser_download_url,
+        version: latestVersion,
+      });
+      await CapacitorUpdater.set(bundle);
+      await CapacitorUpdater.reload();
     } catch (err) {
-      console.warn("OTA Update check failed:", err);
+      console.error('OTA Update check failed:', err);
     }
   };
   // -------------------------
@@ -976,7 +975,7 @@ export default function App() {
   };
 
   const useCustomSkill = (skill: any) => {
-    if (!skill) return;                       // <-- removed `|| skill.used`
+    if (!skill) return;
 
     let epGained = 0;
     let msg = '';
@@ -994,7 +993,6 @@ export default function App() {
       return {
         ...prev,
         ep: newEp,
-        // <-- removed the customSkills map that set used: true
       };
     });
     setLastRoll(msg);
@@ -2497,7 +2495,7 @@ export default function App() {
               </div>
             )}
 
-            {/* Created custom skills */}
+            {/* Created custom skills — reusable forever */}
             {customSkills.length > 0 && (
               <div>
                 <h3 className="text-sm font-bold text-purple-600 mb-2 uppercase tracking-wide">Custom Skills</h3>
