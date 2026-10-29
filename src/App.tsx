@@ -592,6 +592,7 @@ export default function App() {
   const [state, setState] = useState(DEFAULT_STATE);
   const [lastRoll, setLastRoll] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now());
+  const [activeVersion, setActiveVersion] = useState('?');
 
   const [hpStep, setHpStep] = useState(1);
   const [epStep, setEpStep] = useState(1);
@@ -640,6 +641,18 @@ export default function App() {
       checkForOTAUpdate();
     }, 3000);
     return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    CapacitorUpdater.current()
+      .then(c => {
+        setActiveVersion(c?.bundle?.version || 'builtin');
+        console.log('[OTA DIAG] active bundle:', c?.bundle?.version);
+      })
+      .catch(e => {
+        setActiveVersion('ERR');
+        console.warn('[OTA DIAG] current() failed:', e);
+      });
   }, []);
 
   const checkForOTAUpdate = async () => {
@@ -1695,6 +1708,7 @@ export default function App() {
     <div className="min-h-screen bg-gray-100 font-sans text-gray-900">
       <div className="max-w-md mx-auto p-4 pb-24">
         <h1 className="text-xl font-bold text-center mb-1">T.A.D. Sheet</h1>
+        <p className="text-center text-[10px] text-gray-400 mb-1">bundle: {activeVersion}</p>
         {state.name.trim() && (
           <p className="text-center text-sm text-gray-600 mb-3 italic">{state.name.trim()}</p>
         )}
