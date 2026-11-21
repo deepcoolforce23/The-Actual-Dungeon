@@ -27,7 +27,23 @@ export const HEAD_ARMOR: Record<string, any> = {
   'None': { bonus: 0, speed: 0, attack: 0, passive: '', grants: [] },
   'Leather Helmet': { bonus: 2, speed: 0, attack: 0, passive: 'Weak to Blunt (+3).', grants: [] },
   'Tough Helmet': { bonus: 4, speed: -2, attack: 0, passive: 'Heavy (-2 Spd, -4 Mage/Rogue).', grants: [] },
-  'Plate Helmet': { bonus: 5, speed: -2, attack: 0, passive: 'Additional +5 Armor to Plate.', grants: [] }
+  'Plate Helmet': { bonus: 5, speed: -2, attack: 0, passive: 'Additional +5 Armor to Plate.', grants: [] },
+    'Crown of Dawn': {
+    bonus: 0, attack: 0, speed: 0,
+    passive: 'Coinflip to inflict Burn when attacking. Immune to Burn. If the target already has Burn when you attack, deal an extra D6 damage.'
+  },
+  'Crimson Crown': {
+    bonus: 0, attack: 0, speed: 0,
+    passive: 'Inflicting Bleeding converts it to Incapacitated instead. Immune to inflicted Bleeding. When inflicted with Incapacitated, it turns into Bleeding instead. +d4 HP when you attack and it hits. -10 HP after a battle.'
+  },
+  'Crown of Deception': {
+    bonus: 0, attack: 0, speed: 0,
+    passive: 'Coinflip to inflict Confusion or Blinded when attacking.'
+  },
+  'Crown of Binds': {
+    bonus: 15, attack: 0, speed: 0,
+    passive: 'Always have Enchained II in battle. Acquire an Enchained stack when you deal a crit.'
+  },
 };
 
 export const BODY_ARMOR: Record<string, any> = {

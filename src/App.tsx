@@ -9,32 +9,22 @@ import { CapacitorUpdater } from '@capgo/capacitor-updater';
 // --- KURODOKO MINIGAME LOGIC ---
 const generateKurodoko = (size: number) => {
   let grid: any[][] = Array(size).fill(null).map(() => Array(size).fill(null).map(() => ({ isBlack: false, num: 0 })));
-  
-  let blackCount = Math.floor(size * size * 0.15); 
+  let blackCount = Math.floor(size * size * 0.15);
   let attempts = 0;
-  
   while (blackCount > 0 && attempts < 500) {
     attempts++;
     let r = Math.floor(Math.random() * size);
     let c = Math.floor(Math.random() * size);
     if (grid[r][c].isBlack) continue;
-    
     let adj = false;
     if (r > 0 && grid[r-1][c].isBlack) adj = true;
     if (r < size-1 && grid[r+1][c].isBlack) adj = true;
     if (c > 0 && grid[r][c-1].isBlack) adj = true;
     if (c < size-1 && grid[r][c+1].isBlack) adj = true;
-    
     if (!adj) {
       grid[r][c].isBlack = true;
-      
       let whites = [];
-      for (let i=0; i<size; i++) {
-        for (let j=0; j<size; j++) {
-          if (!grid[i][j].isBlack) whites.push({r: i, c: j});
-        }
-      }
-      
+      for (let i=0; i<size; i++) for (let j=0; j<size; j++) if (!grid[i][j].isBlack) whites.push({r: i, c: j});
       let visited = new Set();
       if (whites.length > 0) {
         let queue = [whites[0]];
@@ -43,66 +33,42 @@ const generateKurodoko = (size: number) => {
           let curr = queue.shift()!;
           let dirs = [[-1,0],[1,0],[0,-1],[0,1]];
           for (let [dr, dc] of dirs) {
-            let nr = curr.r + dr;
-            let nc = curr.c + dc;
+            let nr = curr.r + dr, nc = curr.c + dc;
             if (nr >=0 && nr < size && nc >=0 && nc < size && !grid[nr][nc].isBlack) {
               let key = `${nr},${nc}`;
-              if (!visited.has(key)) {
-                visited.add(key);
-                queue.push({r: nr, c: nc});
-              }
+              if (!visited.has(key)) { visited.add(key); queue.push({r: nr, c: nc}); }
             }
           }
         }
       }
-      
-      if (visited.size !== whites.length) {
-        grid[r][c].isBlack = false;
-      } else {
-        blackCount--;
-      }
+      if (visited.size !== whites.length) grid[r][c].isBlack = false;
+      else blackCount--;
     }
   }
-  
-  for (let r=0; r<size; r++) {
-    for (let c=0; c<size; c++) {
-      if (!grid[r][c].isBlack) {
-        let count = 0;
-        for (let i=r; i>=0; i--) { if (grid[i][c].isBlack) break; count++; }
-        for (let i=r+1; i<size; i++) { if (grid[i][c].isBlack) break; count++; }
-        for (let i=c-1; i>=0; i--) { if (grid[r][i].isBlack) break; count++; }
-        for (let i=c+1; i<size; i++) { if (grid[r][i].isBlack) break; count++; }
-        
-        grid[r][c].num = Math.random() > 0.5 ? count : 0;
-      } else {
-        grid[r][c].num = 0;
-      }
-    }
+  for (let r=0; r<size; r++) for (let c=0; c<size; c++) {
+    if (!grid[r][c].isBlack) {
+      let count = 0;
+      for (let i=r; i>=0; i--) { if (grid[i][c].isBlack) break; count++; }
+      for (let i=r+1; i<size; i++) { if (grid[i][c].isBlack) break; count++; }
+      for (let i=c-1; i>=0; i--) { if (grid[r][i].isBlack) break; count++; }
+      for (let i=c+1; i<size; i++) { if (grid[r][i].isBlack) break; count++; }
+      grid[r][c].num = Math.random() > 0.5 ? count : 0;
+    } else grid[r][c].num = 0;
   }
-  
   return grid;
 };
 
 const isValidKurodoko = (grid: any[][]) => {
   const size = grid.length;
-  
-  for (let r=0; r<size; r++) {
-    for (let c=0; c<size; c++) {
-      if (grid[r][c].isBlack) {
-        if (r>0 && grid[r-1][c].isBlack) return false;
-        if (c>0 && grid[r][c-1].isBlack) return false;
-      }
+  for (let r=0; r<size; r++) for (let c=0; c<size; c++) {
+    if (grid[r][c].isBlack) {
+      if (r>0 && grid[r-1][c].isBlack) return false;
+      if (c>0 && grid[r][c-1].isBlack) return false;
     }
   }
-  
   let whites = [];
-  for (let i=0; i<size; i++) {
-    for (let j=0; j<size; j++) {
-      if (!grid[i][j].isBlack) whites.push({r: i, c: j});
-    }
-  }
+  for (let i=0; i<size; i++) for (let j=0; j<size; j++) if (!grid[i][j].isBlack) whites.push({r: i, c: j});
   if (whites.length === 0) return false;
-  
   let visited = new Set();
   let queue = [whites[0]];
   visited.add(`${whites[0].r},${whites[0].c}`);
@@ -110,84 +76,56 @@ const isValidKurodoko = (grid: any[][]) => {
     let curr = queue.shift()!;
     let dirs = [[-1,0],[1,0],[0,-1],[0,1]];
     for (let [dr, dc] of dirs) {
-      let nr = curr.r + dr;
-      let nc = curr.c + dc;
+      let nr = curr.r + dr, nc = curr.c + dc;
       if (nr >=0 && nr < size && nc >=0 && nc < size && !grid[nr][nc].isBlack) {
         let key = `${nr},${nc}`;
-        if (!visited.has(key)) {
-          visited.add(key);
-          queue.push({r: nr, c: nc});
-        }
+        if (!visited.has(key)) { visited.add(key); queue.push({r: nr, c: nc}); }
       }
     }
   }
   if (visited.size !== whites.length) return false;
-  
-  for (let r=0; r<size; r++) {
-    for (let c=0; c<size; c++) {
-      if (!grid[r][c].isBlack && grid[r][c].num > 0) {
-        let count = 0;
-        for (let i=r; i>=0; i--) { if (grid[i][c].isBlack) break; count++; }
-        for (let i=r+1; i<size; i++) { if (grid[i][c].isBlack) break; count++; }
-        for (let i=c-1; i>=0; i--) { if (grid[r][i].isBlack) break; count++; }
-        for (let i=c+1; i<size; i++) { if (grid[r][i].isBlack) break; count++; }
-        if (count !== grid[r][c].num) return false;
-      }
+  for (let r=0; r<size; r++) for (let c=0; c<size; c++) {
+    if (!grid[r][c].isBlack && grid[r][c].num > 0) {
+      let count = 0;
+      for (let i=r; i>=0; i--) { if (grid[i][c].isBlack) break; count++; }
+      for (let i=r+1; i<size; i++) { if (grid[i][c].isBlack) break; count++; }
+      for (let i=c-1; i>=0; i--) { if (grid[r][i].isBlack) break; count++; }
+      for (let i=c+1; i<size; i++) { if (grid[r][i].isBlack) break; count++; }
+      if (count !== grid[r][c].num) return false;
     }
   }
   return true;
 };
 
-// --- NORINORI MINIGAME LOGIC ---
 type Coord = { r: number; c: number };
-
 const generateNorinori = () => {
   const size = 6;
-  const regions = [
-    [0,0,1,1,2,2],
-    [0,0,1,1,2,2],
-    [3,3,4,4,5,5],
-    [3,3,4,4,5,5],
-    [6,6,7,7,8,8],
-    [6,6,7,7,8,8]
-  ];
-  
+  const regions = [[0,0,1,1,2,2],[0,0,1,1,2,2],[3,3,4,4,5,5],[3,3,4,4,5,5],[6,6,7,7,8,8],[6,6,7,7,8,8]];
   let grid: { region: number; isBlack: boolean }[][] = Array(size).fill(null).map((_, r) => Array(size).fill(null).map((_, c) => ({ region: regions[r][c], isBlack: false })));
-
   let attempts = 0;
   while (attempts < 500) {
     for (let r=0; r<size; r++) for (let c=0; c<size; c++) grid[r][c].isBlack = false;
-    
     let regionCells: Coord[][] = Array(9).fill(null).map(() => []);
     for (let r=0; r<size; r++) for (let c=0; c<size; c++) regionCells[regions[r][c]].push({r, c});
-
     for (let i=0; i<9; i++) {
       let cells = regionCells[i];
       let validPairs: Coord[][] = [];
-      for (let j=0; j<4; j++) {
-        for (let k=j+1; k<4; k++) {
-          let c1 = cells[j], c2 = cells[k];
-          if (Math.abs(c1.r - c2.r) + Math.abs(c1.c - c2.c) === 1) {
-            validPairs.push([c1, c2]);
-          }
-        }
+      for (let j=0; j<4; j++) for (let k=j+1; k<4; k++) {
+        let c1 = cells[j], c2 = cells[k];
+        if (Math.abs(c1.r - c2.r) + Math.abs(c1.c - c2.c) === 1) validPairs.push([c1, c2]);
       }
       let pair = validPairs[Math.floor(Math.random() * validPairs.length)];
       grid[pair[0].r][pair[0].c].isBlack = true;
       grid[pair[1].r][pair[1].c].isBlack = true;
     }
-
     let success = true;
-    for (let r=0; r<size; r++) {
-      for (let c=0; c<size; c++) {
-        if (grid[r][c].isBlack) {
-          let reg = grid[r][c].region;
-          if (r > 0 && grid[r-1][c].isBlack && grid[r-1][c].region !== reg) success = false;
-          if (c > 0 && grid[r][c-1].isBlack && grid[r][c-1].region !== reg) success = false;
-        }
+    for (let r=0; r<size; r++) for (let c=0; c<size; c++) {
+      if (grid[r][c].isBlack) {
+        let reg = grid[r][c].region;
+        if (r > 0 && grid[r-1][c].isBlack && grid[r-1][c].region !== reg) success = false;
+        if (c > 0 && grid[r][c-1].isBlack && grid[r][c-1].region !== reg) success = false;
       }
     }
-
     if (success) return grid;
     attempts++;
   }
@@ -197,34 +135,22 @@ const generateNorinori = () => {
 const isValidNorinori = (grid: any[][]) => {
   let regionCounts = Array(9).fill(0);
   let regionCells: Coord[][] = Array(9).fill(null).map(() => []);
-  
-  for (let r=0; r<6; r++) {
-    for (let c=0; c<6; c++) {
-      if (grid[r][c].isBlack) {
-        regionCounts[grid[r][c].region]++;
-        regionCells[grid[r][c].region].push({r, c});
-      }
-    }
+  for (let r=0; r<6; r++) for (let c=0; c<6; c++) {
+    if (grid[r][c].isBlack) { regionCounts[grid[r][c].region]++; regionCells[grid[r][c].region].push({r, c}); }
   }
   if (regionCounts.some(count => count !== 2)) return false;
-
   for (let i=0; i<9; i++) {
     if (regionCells[i].length !== 2) return false;
-    let c1 = regionCells[i][0];
-    let c2 = regionCells[i][1];
+    let c1 = regionCells[i][0], c2 = regionCells[i][1];
     if (Math.abs(c1.r - c2.r) + Math.abs(c1.c - c2.c) !== 1) return false;
   }
-
-  for (let r=0; r<6; r++) {
-    for (let c=0; c<6; c++) {
-      if (grid[r][c].isBlack) {
-        let region = grid[r][c].region;
-        if (r > 0 && grid[r-1][c].isBlack && grid[r-1][c].region !== region) return false;
-        if (c > 0 && grid[r][c-1].isBlack && grid[r][c-1].region !== region) return false;
-      }
+  for (let r=0; r<6; r++) for (let c=0; c<6; c++) {
+    if (grid[r][c].isBlack) {
+      let region = grid[r][c].region;
+      if (r > 0 && grid[r-1][c].isBlack && grid[r-1][c].region !== region) return false;
+      if (c > 0 && grid[r][c-1].isBlack && grid[r][c-1].region !== region) return false;
     }
   }
-  
   return true;
 };
 
@@ -243,6 +169,11 @@ const DEFAULT_STATE = {
   customEquips: [] as any[],
   weaponEnchantments: {} as { [weaponName: string]: { unlocked: boolean; enchantment?: string } },
   customSkills: [] as any[],
+  permanentEffects: [] as string[],
+  blackBookResult: null as 'insanity' | 'darkFate' | null,
+  darkFateLevel2Processed: false,
+  darkFateL6Choice: null as 'tearing' | 'terror' | null,
+  darkFateL6Learned: false,
 };
 
 type ItemCategory =
@@ -277,13 +208,11 @@ const ITEM_DATABASE: ItemEntry[] = [
   { key: 'opaque_shard', name: 'Opaque Shard', category: 'material', note: 'Solid darkness' },
   { key: 'vessel_soul', name: 'Vessel of a Soul', category: 'special', aliases: ['vessel of souls', 'vessel of soul'], note: 'Trapped spectre. Use to prepare your currently equipped weapon for a permanent enchantment.' },
   { key: 'gears', name: 'Gears', category: 'material', aliases: ['gears'], note: 'Useful for complicated machinery.' },
-
   { key: 'green_vial', name: 'Green Vial', category: 'material', aliases: ['green vial'], note: 'Acidic substance, slightly corrosive.' },
   { key: 'water_vial', name: 'Water Vial', category: 'material', aliases: ['water vial','water'], note: 'Murky vial of water.' },
   { key: 'glow_vial', name: 'Glowing Vial', category: 'material', aliases: ['glowing','glowing vial'], note: 'Impure form of the Ether.' },
   { key: 'pure_vial', name: 'Purified Vial', category: 'material', aliases: ['pure vial', 'purified vial', 'purified', 'pure'], note: 'Soul repurposed as a potion ingredient.' },
   { key: 'glass_vial', name: 'Glass Vial', category: 'material', aliases: ['empty vial', 'vial'], note: 'An empty glass vial.' },
-
   { key: 'torch', name: 'Torch', category: 'equipment', note: 'Light source. -1 EP/turn held. Throw to inflict Burn.' },
   { key: 'combustive_vial', name: 'Combustive Vial', category: 'consumable', note: 'Thrown: 3d6 fire damage to all enemies (coinflip per enemy).' },
   { key: 'healing_vial', name: 'Healing Vial', category: 'consumable', aliases: ['heal vial'], note: 'Heal 10 HP' },
@@ -296,12 +225,10 @@ const ITEM_DATABASE: ItemEntry[] = [
   { key: 'ectoplasma_vessel', name: 'Ectoplasma Vessel', category: 'consumable', aliases: ['ectoplasm vessel'], note: 'Trap spectres (coinflip)' },
   { key: 'cure_all', name: 'Cure-All', category: 'consumable', aliases: ['cure', 'cure all'], note: 'Remove ALL effects.' },
   { key: 'smoke_pot', name: 'Smoke Pot', category: 'consumable', aliases: ['smoke bomb'], note: 'Thrown: Shatters into a cloud of thick alchemical smoke, inflicting Blinded.' },
-
   { key: 'lucky_charm', name: 'Lucky Charm', category: 'charm', note: 'Roll d4 with d20 on regular attack' },
   { key: 'restorative_charm', name: 'Restorative Charm', category: 'charm', note: 'Heal d4 HP, lose d4 EP at Planning start' },
   { key: 'vessel_otherworldly', name: 'Vessel of Otherworldly Influence', category: 'charm', aliases: ['vessel otherworldly', 'otherworldly vessel'], note: '+5 Magical Endurance' },
   { key: 'vessel_anxiety', name: 'Vessel of Anxiety', category: 'charm', aliases: ['vessel anxiety', 'anxiety vessel'], note: '+d6 with d20 on regular attack, +2 EP per action' },
-
   { key: 'cleaver', name: 'Cleaver', category: 'weapon', note: 'Light Blade. +5 dmg. d6 > 4 inflicts Bleeding.' },
   { key: 'zweihandler', name: 'Zweihandler', category: 'weapon', aliases: ['zweihander', 'greatsword'], note: 'Heavy Blade. +8 dmg, +4 Atk, -1 Spd.' },
   { key: 'spear', name: 'Spear', category: 'weapon', note: 'Heavy Spear. +5 dmg, +6 Atk. Can Charge.' },
@@ -317,13 +244,11 @@ const ITEM_DATABASE: ItemEntry[] = [
   { key: 'wrench', name: 'Wrench', category: 'weapon', note: 'Heavy Tool. Blunt. +5 dmg. -2 EP on Construct spells.' },
   { key: 'arquebus', name: 'Arquebus', category: 'weapon', note: 'Heavy Ranged. Matchlock firearm. Devastating but slow to reload. Requires blackpowder.' },
   { key: 'ballista', name: 'Ballista', category: 'weapon', note: 'Siege Engine. Fires massive iron bolts. Too heavy to move alone.' },
-
   { key: 'wooden_shield', name: 'Wooden Shield', category: 'shield', note: '+2 Armor. Weak to Blunt (+3).' },
   { key: 'buckler', name: 'Buckler', category: 'shield', note: '+1 Armor. Learn Parry if not already learned.' },
   { key: 'standard_shield', name: 'Standard-issue Shield', category: 'shield', aliases: ['standard shield', 'standard issue shield'], note: '+4 Armor, -1 Spd. Learn Guard if not already learned.' },
   { key: 'metal_shield', name: 'Metal Shield', category: 'shield', note: '+5 Armor. Weak to Piercing (+3).' },
   { key: 'black_shield', name: 'Black Shield', category: 'shield', note: '+10 Defense. HP set to 60 in battle.' },
-
   { key: 'reinforced_cloth_robe', name: 'Reinforced Cloth Robe', category: 'armor', aliases: ['cloth robe', 'robe'], note: '+1 Armor, +3 Fire vulnerability. Light.' },
   { key: 'leather_helmet', name: 'Leather Helmet', category: 'armor', note: '+2 Armor. Head armor. Weak to Blunt (+3).' },
   { key: 'tough_leather_vest', name: 'Tough Leather Vest', category: 'armor', aliases: ['leather vest', 'vest'], note: '+3 Armor. Weak to Blunt (+2). Heavy (-2 Spd, -4 for Mage/Rogue).' },
@@ -331,11 +256,13 @@ const ITEM_DATABASE: ItemEntry[] = [
   { key: 'tough_helmet', name: 'Tough Helmet', category: 'armor', note: '+4 Armor. Heavy (-2 Spd, -4 for Mage/Rogue).' },
   { key: 'plate_body_armor', name: 'Plate Body Armor', category: 'armor', aliases: ['plate armor', 'plate body'], note: '+8 Armor, -4 Spd.' },
   { key: 'plate_helmet', name: 'Plate Helmet', category: 'armor', note: '+5 Armor (with Plate Armor), -2 Spd.' },
-
+  { key: 'crown_dawn', name: 'Crown of Dawn', category: 'armor', note: 'Shed from the calvarium of the so-called "King of the Sun", the light of frauds now blesses their prosecutors and burns away the pride of their victims' },
+  { key: 'crimson_crown', name: 'Crimson Crown', category: 'armor', note: 'The blood of sinners paints the spines of this thorny wreath of stolen life' },
+  { key: 'crown_deception', name: 'Crown of Deception', category: 'armor', note: 'A lie with its skin peeled so thoroughly, it almost is true' },
+  { key: 'crown_binds', name: 'Crown of Binds', category: 'armor', note: 'Another weight to don on your head, so as to hunch you down and keep you humble, for restraint is man\'s best quality' },
   { key: 'grappling_hook', name: 'Grappling Hook', category: 'equipment', note: 'Situational. Iron hook and hemp rope. Allows climbing or pulling distant objects.' },
   { key: 'doctor_mask', name: 'Doctor\'s Mask', category: 'equipment', aliases: ['doctors mask'], note: 'Leather mask stuffed with herbs. Protects against gaseous Poison and airborne diseases.' },
   { key: 'clockwork_beetle', name: 'Clockwork Beetle', category: 'equipment', aliases: ['mechanical spider'], note: 'Situational. A brass and gear trinket. Can scuttle into small spaces for scouting.' },
-
   { key: 'scroll_desperate', name: 'Scroll of the Desperate', category: 'book', aliases: ['desperation scroll'], note: 'Learn Desperation' },
   { key: 'scroll_swift', name: 'Scroll of Swift Impacts', category: 'book', aliases: ['swift impacts'], note: 'Learn Swift Impacts' },
   { key: 'scroll_fencing', name: 'Scroll of Fencing', category: 'book', aliases: ['fencing'], note: 'Learn Attack Stance' },
@@ -351,107 +278,63 @@ const ITEM_DATABASE: ItemEntry[] = [
   { key: 'book_healing', name: 'Book of Healing', category: 'book', note: 'Add d6 to your healing spells' },
   { key: 'tome_violence', name: 'Tome of Violence', category: 'book', aliases: ['violence tome'], note: 'Halve EP gain from Hurting/Injuring/Tearing/Terror of Souls' },
   { key: 'wishes_protection', name: 'Wishes of Protection', category: 'book', aliases: ['protection wishes'], note: '+1 Defense, -1 EP gain on protection spells' },
-  
   { key: 'book_al_artifice', name: "Alchemia I", category: 'book', teachesRecipes: ['ether', 'healing_potion'], note: 'Teaches how to make some useful remedies.' },
   { key: 'book_al_artifice2', name: "Alchemia II", category: 'book', teachesRecipes: ['combustive_vial','poison_vial','smoke_pot'], note: 'Teaches how to make some volatile potions.' },
   { key: 'book_illnesses', name: 'Common Illnesses and Afflictions', category: 'book', teachesRecipes: ['doctor_mask'], note: 'Teaches how to make some useful remedies.' },
   { key: 'book_al_artifice3', name: "Alchemia?", category: 'book', teachesRecipes: ['very_potent_healing_potion','cure_all'], note: '???' },
-  
   { key: 'kriegsmaschinen', name: "Kriegsmaschinen", category: 'book', teachesRecipes: ['arquebus', 'ballista'], note: 'A weathered book containing instructions on how to make machines of war.' },
   { key: 'codex_mechanica', name: "Codex Mechanica", category: 'book', teachesRecipes: ['grappling_hook', 'clockwork_beetle'], note: 'A pamphlet containing some weird handwriting and unrealistic drawings.' },
 ];
 
 const ALL_CRAFTING_RECIPES = [
-  {
-    key: 'torch', name: 'Torch', category: 'equipment', note: 'Light source. -1 EP/turn held. Throw to inflict Burn.',
-    isSimple: true,
-    ingredients: [{ key: 'stick', name: 'Stick', qty: 1 }, { key: 'cloth', name: 'Cloth', qty: 1 }]
-  },
-  {
-    key: 'combustive_vial', name: 'Combustive Vial', category: 'consumable', note: 'Thrown: 3d6 fire damage to all enemies (coinflip per enemy).',
-    ingredients: [{ key: 'reddish_greyish_powder', name: 'Reddish-Greyish Powder', qty: 1 }, { key: 'refreshing_herb', name: 'Refreshing Herb', qty: 1 }, { key: 'glass_vial', name: 'Glass Vial', qty: 1 }]
-  },
-  {
-    key: 'blackpowder', name: 'Blackpowder', category: 'material', note: 'Explosive powder used to fire Arquebuses.',
-    isSimple: true,
-    ingredients: [{ key: 'reddish_greyish_powder', name: 'Reddish-Greyish Powder', qty: 2 }, { key: 'dirt', name: 'Dirt', qty: 1 }]
-  },
-  {
-    key: 'wooden_shield', name: 'Wooden Shield', category: 'shield', note: '+2 Armor. Weak to Blunt (+3).',
-    isSimple: true,
-    ingredients: [{ key: 'wood_pieces', name: 'Wood Pieces', qty: 5 }, { key: 'nails', name: 'Nails', qty: 3 }, { key: 'scrap_metal', name: 'Scrap Metal', qty: 2 }]
-  },
-  {
-    key: 'poison_vial', name: 'Poison Vial', category: 'consumable', note: 'Craft this to inflict Poison onto enemies for 5 turns.',
-    ingredients: [{ key: 'reddish_greyish_powder', name: 'Reddish-Greyish Powder', qty: 1 }, { key: 'green_vial', name: 'Green Vial', qty: 1 }, { key: 'glass_vial', name: 'Glass Vial', qty: 1 }]
-  },
-  {
-    key: 'ether', name: 'Ether', category: 'consumable', note: 'Craft an Ether.',
-    ingredients: [{ key: 'reddish_greyish_powder', name: 'Reddish-Greyish Powder', qty: 1 }, { key: 'pure_vial', name: 'Purified Vial', qty: 1 }, { key: 'glass_vial', name: 'Glass Vial', qty: 1 }]
-  },
-  {
-    key: 'healing_potion', name: 'Healing Potion', category: 'consumable', note: 'Craft a Healing Potion',
-    ingredients: [{ key: 'reddish_greyish_powder', name: 'Reddish-Greyish Powder', qty: 1 }, { key: 'pure_vial', name: 'Purified Vial', qty: 1 }, { key: 'refreshing_herb', name: 'Refreshing Herb', qty: 1 }, { key: 'glass_vial', name: 'Glass Vial', qty: 1 }]
-  },
-  {
-    key: 'very_potent_healing_potion', name: 'Very Potent Healing Potion', category: 'consumable', note: 'Craft a Very Potent Healing Potion',
-    ingredients: [{ key: 'reddish_greyish_powder', name: 'Reddish-Greyish Powder', qty: 1 }, { key: 'refreshing_herb', name: 'Refreshing Herb', qty: 1 }, { key: 'healing_potion', name: 'Healing Potion', qty: 2 }]
-  },
-  {
-    key: 'cure_all', name: 'Cure-all', category: 'consumable', note: 'Craft a Cure-All.',
-    ingredients: [{ key: 'reddish_greyish_powder', name: 'Reddish-Greyish Powder', qty: 2 }, { key: 'pure_vial', name: 'Purified Vial', qty: 3 }, { key: 'refreshing_herb', name: 'Refreshing Herb', qty: 3 }, { key: 'glass_vial', name: 'Glass Vial', qty: 1 }]
-  },
-  {
-    key: 'smoke_pot', name: 'Smoke Pot', category: 'consumable', note: 'Thrown: Shatters into a cloud of thick smoke, inflicting Blinded on mostly everyone. Everyone coinflips once this is used.',
-    ingredients: [{ key: 'cloth', name: 'Cloth', qty: 1 }, { key: 'reddish_greyish_powder', name: 'Reddish-Greyish Powder', qty: 1 }, { key: 'glass_vial', name: 'Glass Vial', qty: 1 }]
-  },
-  {
-    key: 'arquebus', name: 'Arquebus', category: 'weapon', note: 'Heavy Ranged. Matchlock firearm. Requires blackpowder.',
-    ingredients: [{ key: 'wood_pieces', name: 'Wood Pieces', qty: 4 }, { key: 'scrap_metal', name: 'Scrap Metal', qty: 3 }, { key: 'string', name: 'String', qty: 2 }, { key: 'blackpowder', name: 'Blackpowder', qty: 1 }]
-  },
-  {
-    key: 'ballista', name: 'Ballista', category: 'weapon', note: 'Siege Engine. Fires massive iron bolts.',
-    ingredients: [{ key: 'wood_pieces', name: 'Wood Pieces', qty: 8 }, { key: 'scrap_metal', name: 'Scrap Metal', qty: 6 }, { key: 'string', name: 'String', qty: 4 }, { key: 'leather_straps', name: 'Leather Straps', qty: 4 }]
-  },
-  {
-    key: 'grappling_hook', name: 'Grappling Hook', category: 'equipment', note: 'Situational. Allows climbing or pulling distant objects.',
-    ingredients: [{ key: 'scrap_metal', name: 'Scrap Metal', qty: 2 }, { key: 'string', name: 'String', qty: 3 }, { key: 'stick', name: 'Stick', qty: 1 }]
-  },
-  {
-    key: 'clockwork_beetle', name: 'Clockwork Beetle', category: 'equipment', note: 'Situational. Useful for scouting out the next room.',
-    ingredients: [{ key: 'scrap_metal', name: 'Scrap Metal', qty: 3 }, { key: 'gears', name: 'Gears', qty: 3 }]
-  },
-  {
-    key: 'doctor_mask', name: 'Doctor\'s Mask', category: 'equipment', note: 'Protects against gaseous Poison and airborne diseases.',
-    isSimple: true,
-    ingredients: [{ key: 'leather_straps', name: 'Leather Straps', qty: 2 }, { key: 'refreshing_herb', name: 'Refreshing Herb', qty: 1 }, { key: 'cloth', name: 'Cloth', qty: 1 }]
-  },
+  { key: 'torch', name: 'Torch', category: 'equipment', note: 'Light source. -1 EP/turn held. Throw to inflict Burn.', isSimple: true, ingredients: [{ key: 'stick', name: 'Stick', qty: 1 }, { key: 'cloth', name: 'Cloth', qty: 1 }] },
+  { key: 'combustive_vial', name: 'Combustive Vial', category: 'consumable', note: 'Thrown: 3d6 fire damage to all enemies.', ingredients: [{ key: 'reddish_greyish_powder', name: 'Reddish-Greyish Powder', qty: 1 }, { key: 'refreshing_herb', name: 'Refreshing Herb', qty: 1 }, { key: 'glass_vial', name: 'Glass Vial', qty: 1 }] },
+  { key: 'blackpowder', name: 'Blackpowder', category: 'material', note: 'Explosive powder for Arquebuses.', isSimple: true, ingredients: [{ key: 'reddish_greyish_powder', name: 'Reddish-Greyish Powder', qty: 2 }, { key: 'dirt', name: 'Dirt', qty: 1 }] },
+  { key: 'wooden_shield', name: 'Wooden Shield', category: 'shield', note: '+2 Armor. Weak to Blunt (+3).', isSimple: true, ingredients: [{ key: 'wood_pieces', name: 'Wood Pieces', qty: 5 }, { key: 'nails', name: 'Nails', qty: 3 }, { key: 'scrap_metal', name: 'Scrap Metal', qty: 2 }] },
+  { key: 'poison_vial', name: 'Poison Vial', category: 'consumable', note: 'Inflict Poison for 5 turns.', ingredients: [{ key: 'reddish_greyish_powder', name: 'Reddish-Greyish Powder', qty: 1 }, { key: 'green_vial', name: 'Green Vial', qty: 1 }, { key: 'glass_vial', name: 'Glass Vial', qty: 1 }] },
+  { key: 'ether', name: 'Ether', category: 'consumable', note: 'Remove 30 EP.', ingredients: [{ key: 'reddish_greyish_powder', name: 'Reddish-Greyish Powder', qty: 1 }, { key: 'pure_vial', name: 'Purified Vial', qty: 1 }, { key: 'glass_vial', name: 'Glass Vial', qty: 1 }] },
+  { key: 'healing_potion', name: 'Healing Potion', category: 'consumable', note: 'Heal 20 HP.', ingredients: [{ key: 'reddish_greyish_powder', name: 'Reddish-Greyish Powder', qty: 1 }, { key: 'pure_vial', name: 'Purified Vial', qty: 1 }, { key: 'refreshing_herb', name: 'Refreshing Herb', qty: 1 }, { key: 'glass_vial', name: 'Glass Vial', qty: 1 }] },
+  { key: 'very_potent_healing_potion', name: 'Very Potent Healing Potion', category: 'consumable', note: 'Heal 50 HP or take d20 damage.', ingredients: [{ key: 'reddish_greyish_powder', name: 'Reddish-Greyish Powder', qty: 1 }, { key: 'refreshing_herb', name: 'Refreshing Herb', qty: 1 }, { key: 'healing_potion', name: 'Healing Potion', qty: 2 }] },
+  { key: 'cure_all', name: 'Cure-all', category: 'consumable', note: 'Remove ALL effects.', ingredients: [{ key: 'reddish_greyish_powder', name: 'Reddish-Greyish Powder', qty: 2 }, { key: 'pure_vial', name: 'Purified Vial', qty: 3 }, { key: 'refreshing_herb', name: 'Refreshing Herb', qty: 3 }, { key: 'glass_vial', name: 'Glass Vial', qty: 1 }] },
+  { key: 'smoke_pot', name: 'Smoke Pot', category: 'consumable', note: 'Shatters into thick smoke, inflicting Blinded.', ingredients: [{ key: 'cloth', name: 'Cloth', qty: 1 }, { key: 'reddish_greyish_powder', name: 'Reddish-Greyish Powder', qty: 1 }, { key: 'glass_vial', name: 'Glass Vial', qty: 1 }] },
+  { key: 'arquebus', name: 'Arquebus', category: 'weapon', note: 'Heavy Ranged. Requires blackpowder.', ingredients: [{ key: 'wood_pieces', name: 'Wood Pieces', qty: 4 }, { key: 'scrap_metal', name: 'Scrap Metal', qty: 3 }, { key: 'string', name: 'String', qty: 2 }, { key: 'blackpowder', name: 'Blackpowder', qty: 1 }] },
+  { key: 'ballista', name: 'Ballista', category: 'weapon', note: 'Siege Engine.', ingredients: [{ key: 'wood_pieces', name: 'Wood Pieces', qty: 8 }, { key: 'scrap_metal', name: 'Scrap Metal', qty: 6 }, { key: 'string', name: 'String', qty: 4 }, { key: 'leather_straps', name: 'Leather Straps', qty: 4 }] },
+  { key: 'grappling_hook', name: 'Grappling Hook', category: 'equipment', note: 'Allows climbing/pulling distant objects.', ingredients: [{ key: 'scrap_metal', name: 'Scrap Metal', qty: 2 }, { key: 'string', name: 'String', qty: 3 }, { key: 'stick', name: 'Stick', qty: 1 }] },
+  { key: 'clockwork_beetle', name: 'Clockwork Beetle', category: 'equipment', note: 'Useful for scouting.', ingredients: [{ key: 'scrap_metal', name: 'Scrap Metal', qty: 3 }, { key: 'gears', name: 'Gears', qty: 3 }] },
+  { key: 'doctor_mask', name: 'Doctor\'s Mask', category: 'equipment', note: 'Protects against gaseous Poison.', isSimple: true, ingredients: [{ key: 'leather_straps', name: 'Leather Straps', qty: 2 }, { key: 'refreshing_herb', name: 'Refreshing Herb', qty: 1 }, { key: 'cloth', name: 'Cloth', qty: 1 }] },
 ];
 
 const ENCHANTMENTS = [
-  {
-    key: 'blazing',
-    name: 'Blazing',
-    desc: 'Attacks can deal Burn II for d4 turns.',
-  },
-  {
-    key: 'bludgeoning',
-    name: 'Bludgeoning',
-    desc: 'Only for Blunt weapons. Coinflip to Paralyze enemies for 2 turns.',
-  },
-  {
-    key: 'cleaving',
-    name: 'Cleaving',
-    desc: '+10 damage to Blades. Cause Bleeding for 2 turns on regular attack.',
-  },
+  { key: 'blazing', name: 'Blazing', desc: 'Attacks can deal Burn II for d4 turns.' },
+  { key: 'bludgeoning', name: 'Bludgeoning', desc: 'Only for Blunt weapons. Coinflip to Paralyze enemies for 2 turns.' },
+  { key: 'cleaving', name: 'Cleaving', desc: '+10 damage to Blades. Cause Bleeding for 2 turns on regular attack.' },
 ];
 
 const ENCHANTMENT_UNLOCK_KEYS = ['shimmering_sandpaper', 'vessel_soul'];
 
+const BOOK_LEARNING_MAP: Record<string, {
+  kind: 'skill' | 'spell' | 'spellChoice' | 'coinflip';
+  name?: string;
+  choices?: string[];
+  coinSuccess?: string;
+  coinFailEffect?: string;
+}> = {
+  scroll_desperate:     { kind: 'skill', name: 'Desperation' },
+  scroll_swift:         { kind: 'skill', name: 'Swift Impacts' },
+  scroll_fencing:       { kind: 'skill', name: 'Attack Stance' },
+  scroll_stealth:       { kind: 'skill', name: 'Speed Attack' },
+  scroll_reckless:      { kind: 'skill', name: 'Double Impact' },
+  guide_exhaustion:     { kind: 'skill', name: 'Momentary Rest' },
+  unseen_boundary:      { kind: 'spell', name: 'Teleportation' },
+  tome_ivy:             { kind: 'spell', name: 'Spontaneous Poisoning' },
+  emberweaved_grimoire: { kind: 'spellChoice', choices: ['Ring of Embers', 'Concentrated Pyromancy'] },
+  predictions:          { kind: 'coinflip', coinSuccess: 'Visions of the Imminent', coinFailEffect: 'Insanity' },
+};
+
 const searchItems = (query: string): ItemEntry[] => {
   const q = query.trim().toLowerCase();
   if (!q) return [];
-  const scored = ITEM_DATABASE
+  return ITEM_DATABASE
     .map(item => {
       const name = item.name.toLowerCase();
       const aliases = item.aliases?.map(a => a.toLowerCase()) ?? [];
@@ -465,11 +348,9 @@ const searchItems = (query: string): ItemEntry[] => {
       return { item, score };
     })
     .filter(({ score }) => score !== Infinity)
-    .sort((a, b) => {
-      if (a.score !== b.score) return a.score - b.score;
-      return a.item.name.localeCompare(b.item.name);
-    });
-  return scored.slice(0, 6).map(s => s.item);
+    .sort((a, b) => a.score !== b.score ? a.score - b.score : a.item.name.localeCompare(b.item.name))
+    .slice(0, 6)
+    .map(s => s.item);
 };
 
 const resolveItem = (typed: string): ItemEntry | null => {
@@ -477,11 +358,8 @@ const resolveItem = (typed: string): ItemEntry | null => {
   if (!lower) return null;
   const exact = ITEM_DATABASE.find(i => i.name.toLowerCase() === lower);
   if (exact) return exact;
-  const aliasExact = ITEM_DATABASE.find(i =>
-    i.aliases?.some(a => a.toLowerCase() === lower)
-  );
+  const aliasExact = ITEM_DATABASE.find(i => i.aliases?.some(a => a.toLowerCase() === lower));
   if (aliasExact) return aliasExact;
-
   const guesses = searchItems(typed);
   if (guesses.length === 0) return null;
   if (guesses.length === 1) return guesses[0];
@@ -541,10 +419,7 @@ const SmartNumberInput = ({ value, onCommit, className, min = 0, max = Infinity,
 
   const commit = (raw: string) => {
     const parsed = parseInt(raw, 10);
-    if (raw.trim() === '' || isNaN(parsed)) {
-      setText(String(value));
-      return;
-    }
+    if (raw.trim() === '' || isNaN(parsed)) { setText(String(value)); return; }
     const clamped = Math.max(min, Math.min(max, parsed));
     setText(String(clamped));
     if (clamped !== value) onCommit(clamped);
@@ -562,9 +437,7 @@ const SmartNumberInput = ({ value, onCommit, className, min = 0, max = Infinity,
         setText(raw);
         if (raw.trim() === '') return;
         const n = parseInt(raw, 10);
-        if (!isNaN(n) && n >= min) {
-          onCommit(Math.min(max, Math.max(min, n)));
-        }
+        if (!isNaN(n) && n >= min) onCommit(Math.min(max, Math.max(min, n)));
       }}
       onBlur={e => { setIsFocused(false); commit(e.target.value); }}
       onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
@@ -615,74 +488,37 @@ export default function App() {
   const [customSkillEpValue, setCustomSkillEpValue] = useState('10');
   const [customSkillDesc, setCustomSkillDesc] = useState('');
 
-  // --- OTA UPDATE LOGIC ---
+  // --- OTA ---
   useEffect(() => {
     CapacitorUpdater.notifyAppReady().catch(console.warn);
-    const timer = setTimeout(() => {
-      checkForOTAUpdate();
-    }, 3000);
+    const timer = setTimeout(() => { checkForOTAUpdate(); }, 3000);
     return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
-    CapacitorUpdater.current()
-      .then(c => {
-        setActiveVersion(c?.bundle?.version || 'builtin');
-        console.log('[OTA DIAG] active bundle:', c?.bundle?.version);
-      })
-      .catch(e => {
-        setActiveVersion('ERR');
-        console.warn('[OTA DIAG] current() failed:', e);
-      });
+    CapacitorUpdater.current().then(c => { setActiveVersion(c?.bundle?.version || 'builtin'); }).catch(() => setActiveVersion('ERR'));
   }, []);
 
   const checkForOTAUpdate = async () => {
     const GITHUB_REPO = 'deepcoolforce23/The-Actual-Dungeon';
     try {
       const response = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`);
-      if (!response.ok) {
-        console.warn(`OTA: GitHub returned ${response.status}`);
-        return;
-      }
+      if (!response.ok) return;
       const latestRelease = await response.json();
-
       const currentBundle = await CapacitorUpdater.current();
       const currentVersion = currentBundle?.bundle?.version ?? 'unknown';
       const latestVersion = (latestRelease.tag_name || '').replace(/^v/, '');
-
       if (latestVersion === currentVersion) return;
-
-      const zipAsset = (latestRelease.assets || []).find(
-        (asset: any) =>
-          asset.name.toLowerCase().endsWith('.zip') &&
-          !asset.name.toLowerCase().includes('source')
-      );
-      if (!zipAsset) {
-        console.warn(`OTA: release ${latestRelease.tag_name} has no bundle .zip asset.`);
-        return;
-      }
-
-      if (!window.confirm(`New update (v${latestVersion}) is available!\nAsset: ${zipAsset.name}\n\nDownload now?`)) {
-        return;
-      }
-
-      alert('Step 1/3: starting download...');
-      const bundle = await CapacitorUpdater.download({
-        url: zipAsset.browser_download_url,
-        version: latestVersion,
-      });
-
-      alert('Step 2/3: download OK — ' + JSON.stringify(bundle).slice(0, 200));
+      const zipAsset = (latestRelease.assets || []).find((asset: any) => asset.name.toLowerCase().endsWith('.zip') && !asset.name.toLowerCase().includes('source'));
+      if (!zipAsset) return;
+      if (!window.confirm(`New update (v${latestVersion}) is available!\nAsset: ${zipAsset.name}\n\nDownload now?`)) return;
+      const bundle = await CapacitorUpdater.download({ url: zipAsset.browser_download_url, version: latestVersion });
       await CapacitorUpdater.set(bundle);
-
-      alert('Step 3/3: set OK — reloading now');
       await CapacitorUpdater.reload();
     } catch (err: any) {
       alert('OTA failed: ' + (err?.message || String(err)));
-      console.error('OTA Update check failed:', err);
     }
   };
-  // -------------------------
 
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 1000);
@@ -701,36 +537,27 @@ export default function App() {
     const saved = localStorage.getItem(`tad_save_${currentSlot}`);
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (parsed.skills && !parsed.learnedSpells) {
-        parsed.learnedSpells = parsed.skills;
-        delete parsed.skills;
-      }
+      if (parsed.skills && !parsed.learnedSpells) { parsed.learnedSpells = parsed.skills; delete parsed.skills; }
       if (!parsed.learnedRecipes) parsed.learnedRecipes = ['torch', 'wooden_shield'];
       if (!parsed.customMods) parsed.customMods = [];
       if (!parsed.customItems) parsed.customItems = [];
       if (!parsed.customEquips) parsed.customEquips = [];
       if (!parsed.customSkills) parsed.customSkills = [];
+      if (!parsed.permanentEffects) parsed.permanentEffects = [];
+      if (parsed.blackBookResult === undefined) parsed.blackBookResult = null;
+      if (parsed.darkFateLevel2Processed === undefined) parsed.darkFateLevel2Processed = false;
+      if (parsed.darkFateL6Choice === undefined) parsed.darkFateL6Choice = null;
+      if (parsed.darkFateL6Learned === undefined) parsed.darkFateL6Learned = false;
 
       const oldEns: any = parsed.weaponEnchantments || {};
       const newEns: { [k: string]: { unlocked: boolean; enchantment?: string } } = {};
       for (const k of Object.keys(oldEns)) {
         const v = oldEns[k];
-        if (Array.isArray(v)) {
-          if (v.length > 0 && typeof v[0] === 'string') {
-            newEns[k] = { unlocked: true, enchantment: v[0] };
-          }
-        } else if (typeof v === 'string' && v) {
-          newEns[k] = { unlocked: true, enchantment: v };
-        } else if (v && typeof v === 'object') {
-          newEns[k] = {
-            unlocked: v.unlocked === true || !!v.enchantment,
-            enchantment: v.enchantment,
-          };
-        }
+        if (Array.isArray(v)) { if (v.length > 0 && typeof v[0] === 'string') newEns[k] = { unlocked: true, enchantment: v[0] }; }
+        else if (typeof v === 'string' && v) newEns[k] = { unlocked: true, enchantment: v };
+        else if (v && typeof v === 'object') newEns[k] = { unlocked: v.unlocked === true || !!v.enchantment, enchantment: v.enchantment };
       }
-      if (parsed.enchantmentsUnlocked === true && parsed.weapon && parsed.weapon !== 'Unarmed' && !newEns[parsed.weapon]) {
-        newEns[parsed.weapon] = { unlocked: true };
-      }
+      if (parsed.enchantmentsUnlocked === true && parsed.weapon && parsed.weapon !== 'Unarmed' && !newEns[parsed.weapon]) newEns[parsed.weapon] = { unlocked: true };
       parsed.weaponEnchantments = newEns;
       delete parsed.enchantmentsUnlocked;
       if (parsed.weapon && parsed.weapon !== 'Unarmed' && Array.isArray(parsed.inventory)) {
@@ -738,8 +565,7 @@ export default function App() {
         const idx = inv.findIndex((it: any) => it?.name === parsed.weapon);
         if (idx >= 0) {
           const copy = { ...inv[idx], qty: (inv[idx].qty || 0) - 1 };
-          if (copy.qty > 0) inv[idx] = copy;
-          else inv.splice(idx, 1);
+          if (copy.qty > 0) inv[idx] = copy; else inv.splice(idx, 1);
           parsed.inventory = inv;
         }
       }
@@ -748,27 +574,49 @@ export default function App() {
         const db = ITEM_DATABASE.find(i => i.name === name);
         parsed.weapon = 'Unarmed';
         if (Array.isArray(parsed.inventory) && !parsed.inventory.some((it: any) => it?.name === name)) {
-          parsed.inventory = [
-            ...parsed.inventory,
-            {
-              name: db?.name || name,
-              qty: 1,
-              itemKey: db?.key,
-              category: db?.category,
-              note: db?.note,
-            },
-          ];
+          parsed.inventory = [...parsed.inventory, { name: db?.name || name, qty: 1, itemKey: db?.key, category: db?.category, note: db?.note }];
         }
       }
       const loadedState = { ...DEFAULT_STATE, ...parsed };
       loadedState.hp = Math.min(100, Math.max(0, loadedState.hp));
       loadedState.ep = Math.max(0, loadedState.ep);
-      
       setState(loadedState);
     } else {
       setState(DEFAULT_STATE);
     }
   }, [currentSlot]);
+
+  // --- Dark Fate L2: auto-learn Injuring ---
+  useEffect(() => {
+    if (state.blackBookResult === 'darkFate' && state.level >= 2 && !state.darkFateLevel2Processed) {
+      const injuringSpell = SPELLBOOK.find(s => s.name === 'Injuring');
+      if (injuringSpell) {
+        setState(prev => {
+          const withoutHarming = prev.learnedSpells.filter(s => s.name !== 'Harming');
+          const alreadyHasInjuring = withoutHarming.some(s => s.name === 'Injuring');
+          return {
+            ...prev,
+            learnedSpells: alreadyHasInjuring ? withoutHarming : [...withoutHarming, injuringSpell],
+            darkFateLevel2Processed: true,
+          };
+        });
+      }
+    }
+  }, [state.level, state.blackBookResult, state.darkFateLevel2Processed]);
+
+  // --- Dark Fate L6: fallback auto-learn if choice was made but not learned ---
+  useEffect(() => {
+    if (state.blackBookResult === 'darkFate' && state.level >= 6 && state.darkFateL6Choice && !state.darkFateL6Learned) {
+      const spellName = state.darkFateL6Choice === 'tearing' ? 'Tearing' : 'Terror of Souls';
+      const spell = SPELLBOOK.find(s => s.name === spellName);
+      if (spell) {
+        setState(prev => {
+          const filtered = prev.learnedSpells.filter(s => !['Injuring', 'Tearing', 'Terror of Souls'].includes(s.name));
+          return { ...prev, learnedSpells: [...filtered, spell], darkFateL6Learned: true };
+        });
+      }
+    }
+  }, [state.level, state.blackBookResult, state.darkFateL6Choice, state.darkFateL6Learned]);
 
   const saveGame = () => {
     localStorage.setItem(`tad_save_${currentSlot}`, JSON.stringify(state));
@@ -776,64 +624,41 @@ export default function App() {
   };
 
   const baseData = CLASS_STATS[state.charClass];
-  
   const customWep = (state.customEquips || []).find((e: any) => e.slot === 'weapon' && e.name === state.weapon);
   const customHead = (state.customEquips || []).find((e: any) => e.slot === 'head' && e.name === state.head);
   const customBody = (state.customEquips || []).find((e: any) => e.slot === 'body' && e.name === state.body);
   const customShield = (state.customEquips || []).find((e: any) => e.slot === 'shield' && e.name === state.shield);
-
   const wData = customWep || WEAPONS[state.weapon] || { damage: 0, attack: 0, speed: 0, properties: '' };
   const hData = customHead || HEAD_ARMOR[state.head] || { bonus: 0, attack: 0, speed: 0, passive: '' };
   const bData = customBody || BODY_ARMOR[state.body] || { bonus: 0, attack: 0, speed: 0, passive: '' };
   const sData = customShield || SHIELD_ARMOR[state.shield] || { bonus: 0, attack: 0, speed: 0, passive: '' };
 
-  const equippedMods = [
-    ...(wData.mods || []),
-    ...(hData.mods || []),
-    ...(bData.mods || []),
-    ...(sData.mods || []),
-    ...(state.customMods || [])
-  ];
-
+  const equippedMods = [...(wData.mods || []), ...(hData.mods || []), ...(bData.mods || []), ...(sData.mods || []), ...(state.customMods || [])];
   const getMod = (stat: string) => equippedMods.filter((m: any) => m.stat === stat).reduce((sum: number, m: any) => sum + m.amount, 0);
 
   let maxEp = baseData.max_ep;
-  
-  if (state.activeCurse === 'Bound to Darkness') {
-    maxEp = 75;
-  } else if (state.activeCurse === 'Indelible Fatigue') {
-    maxEp = 100;
-  } else if (state.activeCurse === 'Blinding Light') {
-    maxEp = 60;
-  } else if (state.activeCurse === 'Closed Mind') {
-    maxEp = 100;
-  }
-
+  if (state.activeCurse === 'Bound to Darkness') maxEp = 75;
+  else if (state.activeCurse === 'Indelible Fatigue') maxEp = 100;
+  else if (state.activeCurse === 'Blinding Light') maxEp = 60;
+  else if (state.activeCurse === 'Closed Mind') maxEp = 100;
   maxEp = Math.max(1, maxEp + getMod('maxEp'));
 
   let physEnd = baseData.phys_end + getMod('physEnd');
   let magEnd = baseData.mag_end + getMod('magEnd');
   let agility = baseData.agility + getMod('agility');
   let maxSpellSlots = 1;
-
-  if (state.activeCurse === 'Indelible Fatigue') {
-    magEnd -= 2;
-    physEnd -= 2;
-  } else if (state.activeCurse === 'Closed Mind') {
-    maxSpellSlots = 1;
-  } else {
-    maxSpellSlots = 3;
-  }
+  if (state.activeCurse === 'Indelible Fatigue') { magEnd -= 2; physEnd -= 2; }
+  else if (state.activeCurse === 'Closed Mind') maxSpellSlots = 1;
+  else maxSpellSlots = 3;
 
   const totalDef = Math.max(0, (hData.bonus || 0) + (bData.bonus || 0) + (sData.bonus || 0) + getMod('def'));
   let totalCrit = (hData.attack || 0) + (bData.attack || 0) + (sData.attack || 0) + (wData.attack || 0) + getMod('crit');
-  
   if (state.accessory === 'Lucky Charm') totalCrit += 1;
   if (state.accessory === 'Vessel of Anxiety') totalCrit += 2;
 
   let armorSpeed = (hData.speed || 0) + (bData.speed || 0) + (sData.speed || 0);
   if (['Mage', 'Rogue'].includes(state.charClass)) {
-    if (hData.speed < 0) armorSpeed += hData.speed; 
+    if (hData.speed < 0) armorSpeed += hData.speed;
     if (bData.speed < 0) armorSpeed += bData.speed;
   }
   const totalSpd = armorSpeed + (wData.speed || 0) + getMod('spd');
@@ -843,7 +668,7 @@ export default function App() {
                     state.ep >= 30 ? { dmg: -8, agi: -3 } :
                     state.ep >= 20 ? { dmg: -5, agi: -2 } :
                     state.ep >= 10 ? { dmg: -3, agi: -1 } : { dmg: 0, agi: 0 };
-  
+
   const isDowned = state.ep >= maxEp;
   const die = state.level >= 6 ? 'd20' : 'd6';
   const baseDmg = (wData.damage || 0) + (state.level - 1) + getMod('dmg');
@@ -853,7 +678,6 @@ export default function App() {
 
   const activeReactions = [...REACTIONS[state.charClass]];
   const activeReactionNames = new Set(activeReactions.map(r => r.name));
-
   [hData, bData, sData, wData].forEach(item => {
     if (item.grants) {
       item.grants.forEach((rName: string) => {
@@ -874,12 +698,7 @@ export default function App() {
     });
   };
 
-  const adjustLevel = (amount: number) => {
-    setState(prev => {
-      const newLevel = Math.max(1, prev.level + amount);
-      return { ...prev, level: newLevel };
-    });
-  };
+  const adjustLevel = (amount: number) => setState(prev => ({ ...prev, level: Math.max(1, prev.level + amount) }));
 
   const rollDamage = () => {
     const roll = rollDice(`${die}`) + finalDmg;
@@ -890,9 +709,7 @@ export default function App() {
     const roll = rollDice('1d20');
     const total = roll + totalCrit;
     let msg = `Attack Roll: d20 (${roll}) + ${totalCrit} = ${total}`;
-    if (roll === 20 || total >= 20) {
-      msg += `\nCRIT! Roll an extra d6 for damage.`;
-    }
+    if (roll === 20 || total >= 20) msg += `\nCRIT! Roll an extra d6 for damage.`;
     setLastRoll(msg);
   };
 
@@ -900,116 +717,62 @@ export default function App() {
     const epRolled = rollDice(move.ep);
     const maxEpRoll = getMaxRoll(move.ep);
     const endurance = move.type === 'Magical' ? magEnd : physEnd;
-
     let finalEp = epRolled;
     let msg = `${move.name}: Rolled ${epRolled} EP`;
-
-    if (endurance < 0) {
-      finalEp = Math.max(0, epRolled - endurance); 
-      msg += `, ${endurance} Endurance (Always applies)`;
-    } else if (endurance > 0) {
-      if (epRolled === maxEpRoll && epRolled > 0) {
-        finalEp = Math.max(0, epRolled - endurance);
-        msg += ` (MAX ROLL!), -${endurance} Endurance`;
-      } else {
-        msg += ` (Endurance inactive - need ${maxEpRoll} EP to trigger)`;
-      }
+    if (endurance < 0) { finalEp = Math.max(0, epRolled - endurance); msg += `, ${endurance} Endurance (Always applies)`; }
+    else if (endurance > 0) {
+      if (epRolled === maxEpRoll && epRolled > 0) { finalEp = Math.max(0, epRolled - endurance); msg += ` (MAX ROLL!), -${endurance} Endurance`; }
+      else msg += ` (Endurance inactive - need ${maxEpRoll} EP to trigger)`;
     }
-
     msg += ` → +${finalEp} EP`;
-
-    setState(prev => {
-      const newEp = Math.min(maxEp, prev.ep + finalEp);
-      return { ...prev, ep: newEp };
-    });
+    setState(prev => ({ ...prev, ep: Math.min(maxEp, prev.ep + finalEp) }));
     setLastRoll(msg);
   };
 
   const customSkills: any[] = state.customSkills || [];
   const hasCustomSkill5 = customSkills.some((s: any) => s.milestone === 5);
   const hasCustomSkill10 = customSkills.some((s: any) => s.milestone === 10);
-  const showCustomSkillMaker =
-    (state.level === 5 && !hasCustomSkill5) ||
-    (state.level === 10 && !hasCustomSkill10);
+  const showCustomSkillMaker = (state.level === 5 && !hasCustomSkill5) || (state.level === 10 && !hasCustomSkill10);
 
   const createCustomSkill = () => {
     const name = customSkillName.trim();
     if (!name) return alert('Please enter a skill name.');
-
     const milestone = state.level === 5 ? 5 : state.level === 10 ? 10 : null;
     if (!milestone) return;
-
-    if (customSkills.some((s: any) => s.milestone === milestone)) {
-      return alert(`You already created your level ${milestone} custom skill.`);
-    }
-
+    if (customSkills.some((s: any) => s.milestone === milestone)) return alert(`You already created your level ${milestone} custom skill.`);
     const newSkill = {
-      id: Date.now().toString(),
-      milestone,
-      name,
+      id: Date.now().toString(), milestone, name,
       epType: customSkillEpType,
       epValue: customSkillEpType === 'flat' ? Math.max(0, parseInt(customSkillEpValue, 10) || 0) : 0,
       description: customSkillDesc.trim(),
     };
-
-    setState(prev => ({
-      ...prev,
-      customSkills: [...(prev.customSkills || []), newSkill],
-    }));
-
-    setCustomSkillName('');
-    setCustomSkillDesc('');
-    setCustomSkillEpValue('10');
+    setState(prev => ({ ...prev, customSkills: [...(prev.customSkills || []), newSkill] }));
+    setCustomSkillName(''); setCustomSkillDesc(''); setCustomSkillEpValue('10');
   };
 
   const useCustomSkill = (skill: any) => {
     if (!skill) return;
-
-    let epGained = 0;
-    let msg = '';
-
-    if (skill.epType === 'flat') {
-      epGained = Math.max(0, skill.epValue || 0);
-      msg = `${skill.name}: +${epGained} EP (flat)`;
-    } else {
-      epGained = rollDice(`1${skill.epType}`);
-      msg = `${skill.name}: Rolled ${epGained} EP (1${skill.epType})`;
-    }
-
-    setState(prev => {
-      const newEp = Math.min(maxEp, prev.ep + epGained);
-      return {
-        ...prev,
-        ep: newEp,
-      };
-    });
+    let epGained = 0, msg = '';
+    if (skill.epType === 'flat') { epGained = Math.max(0, skill.epValue || 0); msg = `${skill.name}: +${epGained} EP (flat)`; }
+    else { epGained = rollDice(`1${skill.epType}`); msg = `${skill.name}: Rolled ${epGained} EP (1${skill.epType})`; }
+    setState(prev => ({ ...prev, ep: Math.min(maxEp, prev.ep + epGained) }));
     setLastRoll(msg);
   };
 
   const addItemToInventory = (itemToAdd: any, currentInv: any[]) => {
     let newInv = [...currentInv];
     let remaining = itemToAdd.qty;
-
     for (let item of newInv) {
       if (item.name.toLowerCase() === itemToAdd.name.toLowerCase() && item.qty < 99) {
         const add = Math.min(remaining, 99 - item.qty);
-        item.qty += add;
-        remaining -= add;
+        item.qty += add; remaining -= add;
       }
     }
-
     while (remaining > 0 && newInv.length < 10) {
       const add = Math.min(remaining, 99);
-      newInv.push({
-        name: itemToAdd.name,
-        qty: add,
-        itemKey: itemToAdd.key || itemToAdd.itemKey,
-        category: itemToAdd.category,
-        note: itemToAdd.note,
-      });
+      newInv.push({ name: itemToAdd.name, qty: add, itemKey: itemToAdd.key || itemToAdd.itemKey, category: itemToAdd.category, note: itemToAdd.note });
       remaining -= add;
     }
-
     return { newInv, remaining };
   };
 
@@ -1017,23 +780,12 @@ export default function App() {
     const typed = itemNameInput.trim();
     if (!typed) return;
     const qty = Math.max(1, parseInt(itemQtyInput, 10) || 1);
-
     const matched = resolveItem(typed);
     const finalName = matched ? matched.name : typed;
-    const finalKey = matched?.key;
-    const finalCategory = matched?.category;
-    const finalNote = matched?.note;
-
-    const { newInv, remaining } = addItemToInventory({
-      name: finalName, qty, key: finalKey, category: finalCategory, note: finalNote
-    }, state.inventory);
-
+    const { newInv, remaining } = addItemToInventory({ name: finalName, qty, key: matched?.key, category: matched?.category, note: matched?.note }, state.inventory);
     if (remaining > 0) alert("Inventory full!");
-
     setState({ ...state, inventory: newInv });
-    setItemNameInput('');
-    setItemQtyInput('1');
-    setShowSuggestions(false);
+    setItemNameInput(''); setItemQtyInput('1'); setShowSuggestions(false);
   };
 
   const unequipWeapon = () => {
@@ -1043,14 +795,10 @@ export default function App() {
     const custom = (state.customEquips || []).find((e: any) => e.name === oldWeapon);
     const itemToAdd = dbItem
       ? { name: dbItem.name, qty: 1, key: dbItem.key, category: dbItem.category, note: dbItem.note }
-      : custom
-      ? { name: custom.name, qty: 1, key: custom.name.toLowerCase().replace(/\s+/g, '_'), category: 'weapon', note: 'Custom equipment' }
+      : custom ? { name: custom.name, qty: 1, key: custom.name.toLowerCase().replace(/\s+/g, '_'), category: 'weapon', note: 'Custom equipment' }
       : { name: oldWeapon, qty: 1 };
     const { newInv, remaining } = addItemToInventory(itemToAdd, state.inventory);
-    if (remaining > 0) {
-      setLastRoll("Inventory full! Cannot unequip.");
-      return;
-    }
+    if (remaining > 0) { setLastRoll("Inventory full! Cannot unequip."); return; }
     setState({ ...state, weapon: 'Unarmed', inventory: newInv });
     setLastRoll(`Unequipped ${oldWeapon}.`);
   };
@@ -1060,27 +808,14 @@ export default function App() {
     const key = item.itemKey || item.name.toLowerCase().replace(/\s+/g, '_');
 
     if (ENCHANTMENT_UNLOCK_KEYS.includes(key)) {
-      if (!state.weapon || state.weapon === 'Unarmed') {
-        setLastRoll(`Equip a weapon first before using ${item.name}.`);
-        return;
-      }
+      if (!state.weapon || state.weapon === 'Unarmed') { setLastRoll(`Equip a weapon first before using ${item.name}.`); return; }
       const existing = state.weaponEnchantments[state.weapon];
-      if (existing?.unlocked) {
-        setLastRoll(`${state.weapon} is already prepared for enchantment. ${item.name} not consumed.`);
-        return;
-      }
-      let newInv = [...state.inventory];
+      if (existing?.unlocked) { setLastRoll(`${state.weapon} is already prepared for enchantment. ${item.name} not consumed.`); return; }
+      const newInv = [...state.inventory];
       newInv[index].qty -= 1;
       if (newInv[index].qty <= 0) newInv.splice(index, 1);
-      setState({
-        ...state,
-        inventory: newInv,
-        weaponEnchantments: {
-          ...state.weaponEnchantments,
-          [state.weapon]: { ...(state.weaponEnchantments[state.weapon] || {}), unlocked: true },
-        },
-      });
-      setLastRoll(`✦ ${item.name} used! ${state.weapon} is now ready for a permanent enchantment. Swap to another weapon and use another unlock item to prepare it too.`);
+      setState({ ...state, inventory: newInv, weaponEnchantments: { ...state.weaponEnchantments, [state.weapon]: { ...(state.weaponEnchantments[state.weapon] || {}), unlocked: true } } });
+      setLastRoll(`✦ ${item.name} used! ${state.weapon} is now ready for a permanent enchantment.`);
       return;
     }
 
@@ -1091,59 +826,42 @@ export default function App() {
         if (i.itemKey === 'pebble' || i.name === 'Pebble') pebbleCount += i.qty;
         if (i.itemKey === 'nails' || i.name === 'Nails') nailCount += i.qty;
       });
-
       if (powderCount >= 4 && (pebbleCount >= 1 || nailCount >= 1)) {
         let tempInv = JSON.parse(JSON.stringify(state.inventory));
         let needed = 4;
         for (let i = 0; i < tempInv.length; i++) {
           if (tempInv[i].itemKey === 'blackpowder' || tempInv[i].name === 'Blackpowder') {
-            const take = Math.min(needed, tempInv[i].qty);
-            tempInv[i].qty -= take;
-            needed -= take;
-            if (needed <= 0) break;
+            const take = Math.min(needed, tempInv[i].qty); tempInv[i].qty -= take; needed -= take; if (needed <= 0) break;
           }
         }
         needed = 1;
         for (let i = 0; i < tempInv.length; i++) {
           if (tempInv[i].itemKey === 'nails' || tempInv[i].name === 'Nails' || tempInv[i].itemKey === 'pebble' || tempInv[i].name === 'Pebble') {
-            const take = Math.min(needed, tempInv[i].qty);
-            tempInv[i].qty -= take;
-            needed -= take;
-            if (needed <= 0) break;
+            const take = Math.min(needed, tempInv[i].qty); tempInv[i].qty -= take; needed -= take; if (needed <= 0) break;
           }
         }
         tempInv = tempInv.filter((i: any) => i.qty > 0);
         setState({ ...state, inventory: tempInv });
-        setLastRoll("Fired the Arquebus! (Consumed 4 Blackpowder and 1 Nail/Pebble. Weapon not consumed.)");
-      } else {
-        setLastRoll("Failed to fire Arquebus. Need 4 Blackpowder and 1 Nail or Pebble.");
-      }
+        setLastRoll('Fired the Arquebus! (Consumed 4 Blackpowder and 1 Nail/Pebble.)');
+      } else setLastRoll('Failed to fire Arquebus. Need 4 Blackpowder and 1 Nail or Pebble.');
       return;
     }
 
     if (key === 'ballista') {
       let arrowCount = 0;
-      state.inventory.forEach(i => {
-        if (i.itemKey === 'arrows' || i.name === 'Arrows') arrowCount += i.qty;
-      });
-      
+      state.inventory.forEach(i => { if (i.itemKey === 'arrows' || i.name === 'Arrows') arrowCount += i.qty; });
       if (arrowCount >= 1) {
         let tempInv = JSON.parse(JSON.stringify(state.inventory));
         let needed = 1;
         for (let i = 0; i < tempInv.length; i++) {
           if (tempInv[i].itemKey === 'arrows' || tempInv[i].name === 'Arrows') {
-            const take = Math.min(needed, tempInv[i].qty);
-            tempInv[i].qty -= take;
-            needed -= take;
-            if (needed <= 0) break;
+            const take = Math.min(needed, tempInv[i].qty); tempInv[i].qty -= take; needed -= take; if (needed <= 0) break;
           }
         }
         tempInv = tempInv.filter((i: any) => i.qty > 0);
         setState({ ...state, inventory: tempInv });
-        setLastRoll("Fired the Ballista! (Consumed 1 Arrow. Weapon not consumed.)");
-      } else {
-        setLastRoll("Failed to fire Ballista. Need 1 Arrow.");
-      }
+        setLastRoll('Fired the Ballista! (Consumed 1 Arrow.)');
+      } else setLastRoll('Failed to fire Ballista. Need 1 Arrow.');
       return;
     }
 
@@ -1153,15 +871,16 @@ export default function App() {
     let newInfectedEndTime = state.infectedEndTime;
     let newInv = [...state.inventory];
     let newRecipes = [...state.learnedRecipes];
-    let newHead = state.head;
-    let newBody = state.body;
-    let newShield = state.shield;
-    let newWeapon = state.weapon;
+    let newHead = state.head, newBody = state.body, newShield = state.shield, newWeapon = state.weapon;
     let newAccessory = state.accessory || 'None';
+    let newLearnedSkills = [...state.learnedSkills];
+    let newLearnedSpells = [...state.learnedSpells];
+    let newPermanent = [...(state.permanentEffects || [])];
     let msg = `Used ${item.name}! `;
 
     const dbItem = ITEM_DATABASE.find(i => i.key === key);
     const isBook = item.category === 'book';
+    const permanent = state.permanentEffects || [];
 
     const isHead = !!HEAD_ARMOR[item.name] || (state.customEquips || []).some((e: any) => e.slot === 'head' && e.name === item.name);
     const isBody = !!BODY_ARMOR[item.name] || (state.customEquips || []).some((e: any) => e.slot === 'body' && e.name === item.name);
@@ -1170,118 +889,133 @@ export default function App() {
     const isAccessory = (item.category === 'charm' || item.category === 'equipment') && !isHead && !isBody && !isShield && !isWeapon;
 
     if (isHead || isBody || isShield || isWeapon || isAccessory) {
-      const currentlyEquipped =
-        isHead ? newHead :
-        isBody ? newBody :
-        isShield ? newShield :
-        isWeapon ? newWeapon :
-        newAccessory;
-      if (currentlyEquipped === item.name) {
-        setLastRoll(`${item.name} is already equipped.`);
-        return;
-      }
-
+      const currentlyEquipped = isHead ? newHead : isBody ? newBody : isShield ? newShield : isWeapon ? newWeapon : newAccessory;
+      if (currentlyEquipped === item.name) { setLastRoll(`${item.name} is already equipped.`); return; }
       let oldItemName = 'None';
       let slotName = '';
-      
       if (isHead) { oldItemName = newHead; newHead = item.name; slotName = 'Head'; }
       else if (isBody) { oldItemName = newBody; newBody = item.name; slotName = 'Body'; }
       else if (isShield) { oldItemName = newShield; newShield = item.name; slotName = 'Shield'; }
       else if (isWeapon) { oldItemName = newWeapon; newWeapon = item.name; slotName = 'Weapon'; }
       else if (isAccessory) { oldItemName = newAccessory; newAccessory = item.name; slotName = 'Accessory'; }
-
       newInv.splice(index, 1);
-
       if (oldItemName && oldItemName !== 'None' && oldItemName !== 'Unarmed') {
         const oldDbItem = ITEM_DATABASE.find(i => i.name === oldItemName);
         const oldCustom = (state.customEquips || []).find((e: any) => e.name === oldItemName);
-        
         let itemToAdd;
-        if (oldDbItem) {
-          itemToAdd = { name: oldDbItem.name, qty: 1, key: oldDbItem.key, category: oldDbItem.category, note: oldDbItem.note };
-        } else if (oldCustom) {
-          itemToAdd = { name: oldCustom.name, qty: 1, key: oldCustom.name.toLowerCase().replace(/\s+/g, '_'), category: oldCustom.slot === 'weapon' ? 'weapon' : 'armor', note: 'Custom equipment' };
-        } else {
-          itemToAdd = { name: oldItemName, qty: 1 };
-        }
-          
+        if (oldDbItem) itemToAdd = { name: oldDbItem.name, qty: 1, key: oldDbItem.key, category: oldDbItem.category, note: oldDbItem.note };
+        else if (oldCustom) itemToAdd = { name: oldCustom.name, qty: 1, key: oldCustom.name.toLowerCase().replace(/\s+/g, '_'), category: oldCustom.slot === 'weapon' ? 'weapon' : 'armor', note: 'Custom equipment' };
+        else itemToAdd = { name: oldItemName, qty: 1 };
         const { newInv: invWithOld } = addItemToInventory(itemToAdd, newInv);
         newInv = invWithOld;
       }
-
       msg += `Equipped ${item.name} to ${slotName}.`;
-      if (oldItemName !== 'None' && oldItemName !== 'Unarmed') {
-        msg += ` ${oldItemName} returned to inventory.`;
-      }
-      
+      if (oldItemName !== 'None' && oldItemName !== 'Unarmed') msg += ` ${oldItemName} returned to inventory.`;
       setState({ ...state, head: newHead, body: newBody, shield: newShield, weapon: newWeapon, accessory: newAccessory, inventory: newInv });
       setLastRoll(msg);
       return;
     }
 
-    if (key === 'healing_vial') {
-      newHp = newHp + 10;
-      msg += `Healed 10 HP.`;
-    } else if (key === 'healing_potion') {
-      newHp = newHp + 20;
-      msg += `Healed 20 HP.`;
-    } else if (key === 'ether') {
-      newEp = Math.max(0, newEp - 30);
-      msg += `Removed 30 EP.`;
-    } else if (key === 'large_ether') {
-      newEp = 0;
-      msg += `Removed ALL EP.`;
-    } else if (key === 'refreshing_herb') {
-      newEffects = newEffects.filter(e => !['Poison', 'Blinded', 'Confusion', 'Injured', 'Paralyzed', 'Incapacitated'].includes(e));
-      msg += `Removed negative effects.`;
-    } else if (key === 'cure_all') {
-      newEffects = [];
-      newInfectedEndTime = 0;
-      msg += `Removed ALL effects (including positive ones).`;
-    } else if (key === 'combustive_vial') {
-      msg += `Thrown! 3d6 fire damage to all enemies.`;
-    } else if (key === 'smoke_pot') {
-      if (!newEffects.includes('Blinded')) {
-        newEffects.push('Blinded');
+    if (key === 'black_book') {
+      if (state.blackBookResult) {
+        if (!confirm(`Black Book was already used (${state.blackBookResult === 'insanity' ? 'Permanent Insanity' : 'Dark Fate'}). Re-roll anyway?`)) return;
       }
-      msg += `Thrown! The pot shatters, releasing a thick cloud of alchemical smoke. You are now Blinded.`;
-    } else if (dbItem?.teachesRecipe || dbItem?.teachesRecipes) {
-      const recipesToLearn = [];
+      const isHeads = Math.random() > 0.5;
+      const inv = [...state.inventory];
+      inv[index].qty -= 1;
+      if (inv[index].qty <= 0) inv.splice(index, 1);
+
+      if (isHeads) {
+        if (!newEffects.includes('Insanity')) newEffects.push('Insanity');
+        if (!newPermanent.includes('Insanity')) newPermanent.push('Insanity');
+        setState({ ...state, effects: newEffects, permanentEffects: newPermanent, blackBookResult: 'insanity', inventory: inv });
+        setLastRoll('Black Book (Heads): PERMANENT INSANITY.\n\nSupport spells and Visions of the Imminent are now inaccessible. This cannot be undone.');
+      } else {
+        const harmingSpell = SPELLBOOK.find(s => s.name === 'Harming');
+        const filteredSpells = newLearnedSpells.filter(s => s.level !== 1);
+        if (harmingSpell) filteredSpells.push(harmingSpell);
+        setState({
+          ...state,
+          learnedSpells: filteredSpells,
+          activeCurse: 'Bound to Darkness',
+          blackBookResult: 'darkFate',
+          darkFateLevel2Processed: false,
+          inventory: inv,
+        });
+        setLastRoll('Black Book (Tails): DARK FATE activated.\n\nCurse set to Bound to Darkness. Level 1 spells replaced with Harming. At Level 2 you will automatically gain Injuring (Harming removed). At Level 6 you will choose between Tearing and Terror of Souls.');
+      }
+      return;
+    }
+
+    if (key === 'healing_vial') { newHp += 10; msg += `Healed 10 HP.`; }
+    else if (key === 'healing_potion') { newHp += 20; msg += `Healed 20 HP.`; }
+    else if (key === 'ether') { newEp = Math.max(0, newEp - 30); msg += `Removed 30 EP.`; }
+    else if (key === 'large_ether') { newEp = 0; msg += `Removed ALL EP.`; }
+    else if (key === 'refreshing_herb') {
+      newEffects = newEffects.filter(e => permanent.includes(e) || !['Poison', 'Blinded', 'Confusion', 'Injured', 'Paralyzed', 'Incapacitated'].includes(e));
+      msg += `Removed negative effects (permanent ones remain).`;
+    }
+    else if (key === 'cure_all') { newEffects = [...permanent]; newInfectedEndTime = 0; msg += `Removed ALL effects (permanent ones remain).`; }
+    else if (key === 'combustive_vial') { msg += `Thrown! 3d6 fire damage to all enemies.`; }
+    else if (key === 'smoke_pot') { if (!newEffects.includes('Blinded')) newEffects.push('Blinded'); msg += `Thrown! Blinded.`; }
+    else if (dbItem?.teachesRecipe || dbItem?.teachesRecipes) {
+      const recipesToLearn: string[] = [];
       if (dbItem.teachesRecipe) recipesToLearn.push(dbItem.teachesRecipe);
       if (dbItem.teachesRecipes) recipesToLearn.push(...dbItem.teachesRecipes);
-
       let learnedCount = 0;
-      for (const rKey of recipesToLearn) {
-        if (!newRecipes.includes(rKey)) {
-          newRecipes.push(rKey);
-          learnedCount++;
+      for (const rKey of recipesToLearn) if (!newRecipes.includes(rKey)) { newRecipes.push(rKey); learnedCount++; }
+      msg += learnedCount > 0 ? `Learned ${learnedCount} new crafting recipe(s)!` : `You already know all these recipes.`;
+    }
+    else if (BOOK_LEARNING_MAP[key]) {
+      const learnData = BOOK_LEARNING_MAP[key];
+      if (learnData.kind === 'skill') {
+        const skill = SCROLL_SKILLS.find(s => s.name === learnData.name);
+        if (skill && !newLearnedSkills.some(s => s.name === skill.name)) { newLearnedSkills = [...newLearnedSkills, skill]; msg += `Learned skill: ${skill.name}!`; }
+        else if (skill) msg += `Already know ${skill.name}.`;
+      } else if (learnData.kind === 'spell') {
+        const spell = SPELLBOOK.find(s => s.name === learnData.name);
+        if (spell && !newLearnedSpells.some(s => s.name === spell.name)) { newLearnedSpells = [...newLearnedSpells, spell]; msg += `Learned spell: ${spell.name}!`; }
+        else if (spell) msg += `Already know ${spell.name}.`;
+      } else if (learnData.kind === 'spellChoice' && learnData.choices) {
+        let learnedOne = false;
+        for (const choiceName of learnData.choices) {
+          const spell = SPELLBOOK.find(s => s.name === choiceName);
+          if (spell && !newLearnedSpells.some(s => s.name === spell.name)) {
+            newLearnedSpells = [...newLearnedSpells, spell];
+            msg += `Learned spell: ${spell.name}!`;
+            learnedOne = true;
+            break;
+          }
+        }
+        if (!learnedOne) msg += `Already know all spells from this book.`;
+      } else if (learnData.kind === 'coinflip') {
+        const isHeads = Math.random() > 0.5;
+        if (isHeads) {
+          const spell = SPELLBOOK.find(s => s.name === learnData.coinSuccess);
+          if (spell && !newLearnedSpells.some(s => s.name === spell.name)) { newLearnedSpells = [...newLearnedSpells, spell]; msg += `Coinflip HEADS! Learned spell: ${spell.name}!`; }
+          else msg += `Coinflip HEADS but already know ${learnData.coinSuccess}.`;
+        } else {
+          if (learnData.coinFailEffect === 'Insanity') {
+            if (!newEffects.includes('Insanity')) newEffects.push('Insanity');
+            msg += `Coinflip TAILS! Gained Insanity.`;
+          } else msg += `Coinflip TAILS. No effect.`;
         }
       }
-      
-      if (learnedCount > 0) {
-        msg += `Learned ${learnedCount} new crafting recipe(s)!`;
-      } else {
-        msg += `You already know all these recipes.`;
-      }
-    } else if (isBook) {
-      msg += `Learned something new. (Check spells/skills)`;
-    } else if (item.category === 'material') {
-      msg += `Cannot be used directly. Use it in the Crafting menu.`;
-      setLastRoll(msg);
-      return;
-    } else {
-      msg += `No immediate effect, but consumed.`;
     }
+    else if (isBook) { msg += `Read. (No automated effect — apply per the book's description.)`; }
+    else if (item.category === 'material') { setLastRoll(`${item.name} cannot be used directly. Use it in the Crafting menu.`); return; }
+    else { msg += `No immediate effect, but consumed.`; }
 
     newInv[index].qty -= 1;
-    if (newInv[index].qty <= 0) {
-      newInv.splice(index, 1);
-    }
-
+    if (newInv[index].qty <= 0) newInv.splice(index, 1);
     newHp = Math.min(100, Math.max(0, newHp));
     newEp = Math.min(maxEp, Math.max(0, newEp));
 
-    setState({ ...state, hp: newHp, ep: newEp, effects: newEffects, infectedEndTime: newInfectedEndTime, inventory: newInv, learnedRecipes: newRecipes });
+    setState({
+      ...state, hp: newHp, ep: newEp, effects: newEffects, infectedEndTime: newInfectedEndTime,
+      inventory: newInv, learnedRecipes: newRecipes, learnedSkills: newLearnedSkills, learnedSpells: newLearnedSpells,
+      permanentEffects: newPermanent,
+    });
     setLastRoll(msg);
   };
 
@@ -1290,29 +1024,16 @@ export default function App() {
     if (!acc || acc === 'None') return;
     const dbItem = ITEM_DATABASE.find(i => i.name === acc);
     if (!dbItem || dbItem.category !== 'charm') return;
-
     let msg = `Triggered ${acc}! `;
-    let newHp = state.hp;
-    let newEp = state.ep;
-
-    if (acc === 'Lucky Charm') {
-      const roll = rollDice('1d4');
-      msg += `Rolled a d4: ${roll}. Add this to your next attack roll.`;
-    } else if (acc === 'Restorative Charm') {
-      const heal = rollDice('1d4');
-      const epLoss = rollDice('1d4');
-      newHp = Math.min(100, newHp + heal);
-      newEp = Math.max(0, newEp - epLoss);
-      msg += `Healed ${heal} HP and lost ${epLoss} EP.`;
-    } else if (acc === 'Vessel of Otherworldly Influence') {
-      msg += `Passive effect: +5 Magical Endurance.`;
-    } else if (acc === 'Vessel of Anxiety') {
-      const roll = rollDice('1d6');
-      msg += `Rolled a d6: ${roll}. Add this to your next attack roll.`;
-    } else {
-      msg += `No special trigger effect defined.`;
-    }
-
+    let newHp = state.hp, newEp = state.ep;
+    if (acc === 'Lucky Charm') { const roll = rollDice('1d4'); msg += `Rolled d4: ${roll}. Add to next attack.`; }
+    else if (acc === 'Restorative Charm') {
+      const heal = rollDice('1d4'); const epLoss = rollDice('1d4');
+      newHp = Math.min(100, newHp + heal); newEp = Math.max(0, newEp - epLoss);
+      msg += `Healed ${heal} HP, lost ${epLoss} EP.`;
+    } else if (acc === 'Vessel of Otherworldly Influence') { msg += `Passive: +5 Magical Endurance.`; }
+    else if (acc === 'Vessel of Anxiety') { const roll = rollDice('1d6'); msg += `Rolled d6: ${roll}. Add to next attack.`; }
+    else msg += `No special trigger effect defined.`;
     setState({ ...state, hp: newHp, ep: newEp });
     setLastRoll(msg);
   };
@@ -1320,13 +1041,8 @@ export default function App() {
   const startCraft = (recipe: any) => {
     let canCraft = true;
     for (const ing of recipe.ingredients) {
-      const total = state.inventory
-        .filter(invItem => (invItem.itemKey || invItem.name.toLowerCase().replace(/\s+/g, '_')) === ing.key || invItem.name.toLowerCase() === ing.name.toLowerCase())
-        .reduce((sum, invItem) => sum + invItem.qty, 0);
-      if (total < ing.qty) {
-        canCraft = false;
-        break;
-      }
+      const total = state.inventory.filter(invItem => (invItem.itemKey || invItem.name.toLowerCase().replace(/\s+/g, '_')) === ing.key || invItem.name.toLowerCase() === ing.name.toLowerCase()).reduce((sum, invItem) => sum + invItem.qty, 0);
+      if (total < ing.qty) { canCraft = false; break; }
     }
     if (!canCraft) return alert("Missing ingredients!");
 
@@ -1337,136 +1053,78 @@ export default function App() {
         for (let i = 0; i < tempInv.length; i++) {
           const invKey = tempInv[i].itemKey || tempInv[i].name.toLowerCase().replace(/\s+/g, '_');
           if (invKey === ing.key || tempInv[i].name.toLowerCase() === ing.name.toLowerCase()) {
-            const deduct = Math.min(needed, tempInv[i].qty);
-            tempInv[i].qty -= deduct;
-            needed -= deduct;
-            if (needed <= 0) break;
+            const deduct = Math.min(needed, tempInv[i].qty); tempInv[i].qty -= deduct; needed -= deduct; if (needed <= 0) break;
           }
         }
       }
       tempInv = tempInv.filter((item: any) => item.qty > 0);
-
-      const { newInv: finalInv, remaining } = addItemToInventory({
-        name: recipe.name,
-        qty: 1,
-        key: recipe.key,
-        category: recipe.category,
-        note: recipe.note
-      }, tempInv);
-
-      if (remaining > 0) {
-        alert("Inventory full! Crafted item lost.");
-      } else {
-        setLastRoll(`Crafted 1x ${recipe.name}!`);
-      }
+      const { newInv: finalInv, remaining } = addItemToInventory({ name: recipe.name, qty: 1, key: recipe.key, category: recipe.category, note: recipe.note }, tempInv);
+      if (remaining > 0) alert("Inventory full! Crafted item lost.");
+      else setLastRoll(`Crafted 1x ${recipe.name}!`);
       setState({ ...state, inventory: finalInv });
-      return; 
+      return;
     }
 
     setCraftingRecipe(recipe);
-    const isSimple = recipe.isSimple;
-
-    if (isSimple) {
+    if (recipe.isSimple) {
       setPuzzleType('norinori');
       const newGrid = generateNorinori();
-      const blankGrid = newGrid.map(row => row.map(cell => ({ ...cell, isBlack: false })));
-      setPuzzleGrid(blankGrid);
+      setPuzzleGrid(newGrid.map(row => row.map(cell => ({ ...cell, isBlack: false }))));
     } else {
       setPuzzleType('kurodoko');
       const newGrid = generateKurodoko(6);
-      const blankGrid = newGrid.map(row => row.map(cell => ({ ...cell, isBlack: false })));
-      setPuzzleGrid(blankGrid);
+      setPuzzleGrid(newGrid.map(row => row.map(cell => ({ ...cell, isBlack: false }))));
     }
-    
-    setShowPuzzle(true);
-    setPuzzleError('');
-    setShowHelp(false);
+    setShowPuzzle(true); setPuzzleError(''); setShowHelp(false);
   };
 
   const checkPuzzle = () => {
     const isValid = puzzleType === 'norinori' ? isValidNorinori(puzzleGrid) : isValidKurodoko(puzzleGrid);
-    
     let tempInv = JSON.parse(JSON.stringify(state.inventory));
     for (const ing of craftingRecipe.ingredients) {
       let needed = ing.qty;
       for (let i = 0; i < tempInv.length; i++) {
         const invKey = tempInv[i].itemKey || tempInv[i].name.toLowerCase().replace(/\s+/g, '_');
         if (invKey === ing.key || tempInv[i].name.toLowerCase() === ing.name.toLowerCase()) {
-          const deduct = Math.min(needed, tempInv[i].qty);
-          tempInv[i].qty -= deduct;
-          needed -= deduct;
-          if (needed <= 0) break;
+          const deduct = Math.min(needed, tempInv[i].qty); tempInv[i].qty -= deduct; needed -= deduct; if (needed <= 0) break;
         }
       }
     }
     tempInv = tempInv.filter((item: any) => item.qty > 0);
-
     if (isValid) {
-      const { newInv: finalInv, remaining } = addItemToInventory({
-        name: craftingRecipe.name,
-        qty: 1,
-        key: craftingRecipe.key,
-        category: craftingRecipe.category,
-        note: craftingRecipe.note
-      }, tempInv);
-
-      if (remaining > 0) {
-        alert("Inventory full! Crafted item lost.");
-      } else {
-        setLastRoll(`Crafted 1x ${craftingRecipe.name}!`);
-      }
+      const { newInv: finalInv, remaining } = addItemToInventory({ name: craftingRecipe.name, qty: 1, key: craftingRecipe.key, category: craftingRecipe.category, note: craftingRecipe.note }, tempInv);
+      if (remaining > 0) alert("Inventory full! Crafted item lost.");
+      else setLastRoll(`Crafted 1x ${craftingRecipe.name}!`);
       setState({ ...state, inventory: finalInv });
     } else {
       setState({ ...state, inventory: tempInv });
-      setLastRoll("Crafting failed! The materials were destroyed by the failed process.");
+      setLastRoll("Crafting failed! Materials destroyed.");
     }
     setShowPuzzle(false);
   };
 
   const toggleEffect = (effect: string) => {
+    if ((state.permanentEffects || []).includes(effect)) { alert(`${effect} is permanent and cannot be removed.`); return; }
     if (state.effects.includes(effect)) {
-      setState({ 
-        ...state, 
-        effects: state.effects.filter(e => e !== effect),
-        infectedEndTime: effect === 'Infected' ? 0 : state.infectedEndTime 
-      });
+      setState({ ...state, effects: state.effects.filter(e => e !== effect), infectedEndTime: effect === 'Infected' ? 0 : state.infectedEndTime });
     } else {
-      if (state.effects.length >= 5) return alert("Max 5 effects allowed.");
-      setState({ 
-        ...state, 
-        effects: [...state.effects, effect],
-        infectedEndTime: effect === 'Infected' ? Date.now() + 3600000 : state.infectedEndTime
-      });
+      if (state.effects.length >= 5) return alert('Max 5 effects allowed.');
+      setState({ ...state, effects: [...state.effects, effect], infectedEndTime: effect === 'Infected' ? Date.now() + 1800000 : state.infectedEndTime });
     }
   };
 
   const triggerEffects = () => {
     let log: string[] = [];
-    let newHp = state.hp;
-    let newEp = state.ep;
-    
+    let newHp = state.hp, newEp = state.ep;
     for (const eff of state.effects) {
       const data = STATUS_EFFECTS[eff];
-      if (data.trigger === 'damage') {
-        const dmg = data.dice ? rollDice(data.dice) : data.fixed;
-        newHp = Math.max(0, newHp - dmg);
-        log.push(`${eff}: -${dmg} HP`);
-      } else if (data.trigger === 'heal') {
-        const heal = rollDice(data.dice);
-        newHp += heal;
-        log.push(`${eff}: +${heal} HP`);
-      } else if (data.trigger === 'damage_ep') {
-        newHp = Math.max(0, newHp - data.fixed);
-        newEp += data.ep;
-        log.push(`${eff}: -${data.fixed} HP, +${data.ep} EP`);
-      }
+      if (data.trigger === 'damage') { const dmg = data.dice ? rollDice(data.dice) : data.fixed; newHp = Math.max(0, newHp - dmg); log.push(`${eff}: -${dmg} HP`); }
+      else if (data.trigger === 'heal') { const heal = rollDice(data.dice); newHp += heal; log.push(`${eff}: +${heal} HP`); }
+      else if (data.trigger === 'damage_ep') { newHp = Math.max(0, newHp - data.fixed); newEp += data.ep; log.push(`${eff}: -${data.fixed} HP, +${data.ep} EP`); }
     }
-    
     if (log.length === 0) return alert("No active damage/healing effects triggered.");
-    
     newHp = Math.min(100, Math.max(0, newHp));
     newEp = Math.min(maxEp, Math.max(0, newEp));
-
     setState({ ...state, hp: newHp, ep: newEp });
     setLastRoll(log.join("\n"));
   };
@@ -1475,34 +1133,25 @@ export default function App() {
     const currentSpells = state.learnedSpells;
     if (currentSpells.some((s: any) => s.name === spell.name)) return { allowed: false, reason: '' };
     if (spell.level > state.level) return { allowed: false, reason: `Requires Level ${spell.level}` };
-
     const levelSpells = currentSpells.filter((s: any) => s.level === spell.level);
     if (levelSpells.length >= maxSpellSlots) return { allowed: false, reason: `Max ${maxSpellSlots} spells of this level` };
-
     const spellNames = currentSpells.map((s: any) => s.name);
-    
-    const replaces = 
+    const replaces =
       (spell.name === 'Injuring' && spellNames.includes('Harming')) ||
       (spell.name === 'Arcane Shield' && spellNames.some((n: string) => ['Light Shield', 'Simple Protection'].includes(n))) ||
       (['Tearing', 'Terror of Souls'].includes(spell.name) && spellNames.includes('Injuring'));
-
     if (!replaces) {
       if (spellNames.includes('Ultimate Healing')) return { allowed: false, reason: 'Blocked by Ultimate Healing' };
       if (spellNames.includes('Light Shield') && currentSpells.length >= 2) return { allowed: false, reason: 'Blocked by Light Shield' };
       if (spell.name === 'Ultimate Healing' && currentSpells.length > 0) return { allowed: false, reason: 'Must be your only spell' };
       if (spell.name === 'Light Shield' && currentSpells.length < 2) return { allowed: false, reason: 'Requires 2 other spells' };
-
       const hasLimiter = spellNames.some((n: string) => ['Harming', 'Simple Protection', 'Injuring', 'Arcane Shield'].includes(n));
       if (hasLimiter && currentSpells.length >= 2) return { allowed: false, reason: 'A learned spell limits you to 2 total spells' };
       if (['Harming', 'Simple Protection', 'Injuring', 'Arcane Shield'].includes(spell.name) && currentSpells.length >= 2) return { allowed: false, reason: 'This spell limits you to 2 total spells' };
-
       if (spell.level === 6 && levelSpells.length >= 1) return { allowed: false, reason: 'Only 1 Level 6 spell allowed' };
     } else {
-      if (spell.level === 6 && (spellNames.includes('Tearing') || spellNames.includes('Terror of Souls'))) {
-         return { allowed: false, reason: 'Already have a Level 6 spell' };
-      }
+      if (spell.level === 6 && (spellNames.includes('Tearing') || spellNames.includes('Terror of Souls'))) return { allowed: false, reason: 'Already have a Level 6 spell' };
     }
-
     return { allowed: true, reason: '' };
   };
 
@@ -1510,15 +1159,18 @@ export default function App() {
   const inputStyle = "w-full bg-white text-black border border-gray-400 p-2 text-sm focus:outline-none focus:border-black";
   const labelStyle = "text-xs font-bold text-gray-700 mb-1";
   const btnSuccess = "w-full bg-blue-600 text-white font-bold p-2 text-sm hover:bg-blue-700";
-  
+
   const ListItem = ({ item, type }: { item: any, type: 'spell' | 'skill' }) => {
-    const isLearned = type === 'spell' 
+    const isLearned = type === 'spell'
       ? state.learnedSpells.some((s: any) => s.name === item.name)
       : state.learnedSkills.some((s: any) => s.name === item.name);
-
     const status = type === 'spell' ? getSpellStatus(item) : { allowed: true, reason: '' };
+    const isPermanentInsanity = (state.permanentEffects || []).includes('Insanity');
+    const blockedByInsanity = isPermanentInsanity && type === 'spell' && (item.type || '').toLowerCase().includes('support');
+    const blockedByVisions = isPermanentInsanity && item.name === 'Visions of the Imminent';
 
     const handleToggle = () => {
+      if (blockedByInsanity || blockedByVisions) return;
       if (isLearned) {
         if (type === 'spell') setState({ ...state, learnedSpells: state.learnedSpells.filter((s: any) => s.name !== item.name) });
         else setState({ ...state, learnedSkills: state.learnedSkills.filter((s: any) => s.name !== item.name) });
@@ -1528,9 +1180,7 @@ export default function App() {
           let newSpells = [...state.learnedSpells];
           if (item.name === 'Injuring') newSpells = newSpells.filter((s: any) => s.name !== 'Harming');
           if (item.name === 'Arcane Shield') newSpells = newSpells.filter((s: any) => !['Light Shield', 'Simple Protection'].includes(s.name));
-          if (['Tearing', 'Terror of Souls'].includes(item.name)) {
-            newSpells = newSpells.filter((s: any) => !['Injuring', 'Tearing', 'Terror of Souls'].includes(s.name));
-          }
+          if (['Tearing', 'Terror of Souls'].includes(item.name)) newSpells = newSpells.filter((s: any) => !['Injuring', 'Tearing', 'Terror of Souls'].includes(s.name));
           setState({ ...state, learnedSpells: [...newSpells, item] });
         } else {
           setState({ ...state, learnedSkills: [...state.learnedSkills, item] });
@@ -1543,27 +1193,16 @@ export default function App() {
         <div className="pr-3">
           <p className={`font-bold text-sm ${isLearned ? 'text-blue-600' : 'text-gray-900'}`}>{item.name}</p>
           <p className="text-xs text-gray-600 mt-0.5">{item.ep} EP - {item.note}</p>
-          {!isLearned && !status.allowed && status.reason && (
-            <p className="text-[10px] text-red-600 mt-1 font-bold">{status.reason}</p>
-          )}
+          {!isLearned && !status.allowed && status.reason && <p className="text-[10px] text-red-600 mt-1 font-bold">{status.reason}</p>}
+          {isPermanentInsanity && !isLearned && (blockedByInsanity || blockedByVisions) && <p className="text-[10px] text-purple-600 mt-1 font-bold">Blocked by permanent Insanity.</p>}
         </div>
         <div className="flex gap-2">
           {isLearned && <button onClick={() => useMove(item)} className="bg-gray-200 hover:bg-gray-300 border border-gray-400 text-black px-3 py-1 text-xs font-bold">Use</button>}
-          
           {isLearned ? (
-            <button onClick={handleToggle} className="px-3 py-1 text-xs font-bold bg-red-100 hover:bg-red-200 border border-red-400 text-red-700">
-              Forget
-            </button>
+            <button onClick={handleToggle} className="px-3 py-1 text-xs font-bold bg-red-100 hover:bg-red-200 border border-red-400 text-red-700">Forget</button>
           ) : (
-            <button 
-              onClick={handleToggle} 
-              disabled={!status.allowed}
-              className={`px-3 py-1 text-xs font-bold border ${
-                status.allowed 
-                  ? 'bg-blue-100 hover:bg-blue-200 border-blue-400 text-blue-700' 
-                  : 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed'
-              }`}
-            >
+            <button onClick={handleToggle} disabled={!status.allowed || blockedByInsanity || blockedByVisions}
+              className={`px-3 py-1 text-xs font-bold border ${status.allowed && !blockedByInsanity && !blockedByVisions ? 'bg-blue-100 hover:bg-blue-200 border-blue-400 text-blue-700' : 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed'}`}>
               Learn
             </button>
           )}
@@ -1573,81 +1212,43 @@ export default function App() {
   };
 
   const allSuggestions = [...ITEM_DATABASE, ...(state.customItems || []), ...(state.customEquips || [])];
-
   const getSuggestions = (query: string) => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
-    return allSuggestions
-      .filter(item => item.name.toLowerCase().includes(q))
-      .slice(0, 6);
+    return allSuggestions.filter(item => item.name.toLowerCase().includes(q)).slice(0, 6);
   };
-
   const suggestions = showSuggestions ? getSuggestions(itemNameInput) : [];
   const resolvedPreview = itemNameInput.trim() ? resolveItem(itemNameInput) : null;
-  const willRename =
-    resolvedPreview &&
-    resolvedPreview.name.toLowerCase() !== itemNameInput.trim().toLowerCase();
-
+  const willRename = resolvedPreview && resolvedPreview.name.toLowerCase() !== itemNameInput.trim().toLowerCase();
   const accItem = ITEM_DATABASE.find(i => i.name === state.accessory);
   const isCharmEquipped = accItem && accItem.category === 'charm';
 
   const addCustomMod = () => {
     const name = modNameInput.trim() || 'Custom Effect';
-    const stat = modStatInput;
     const amount = parseInt(modAmountInput, 10);
     if (isNaN(amount)) return alert("Please enter a valid number.");
-    
-    const newMod = {
-      id: Date.now().toString(),
-      name,
-      stat,
-      amount
-    };
-    setState({ ...state, customMods: [...(state.customMods || []), newMod] });
+    setState({ ...state, customMods: [...(state.customMods || []), { id: Date.now().toString(), name, stat: modStatInput, amount }] });
     setModNameInput('');
   };
-
-  const removeCustomMod = (id: string) => {
-    setState({ ...state, customMods: (state.customMods || []).filter((m: any) => m.id !== id) });
-  };
+  const removeCustomMod = (id: string) => setState({ ...state, customMods: (state.customMods || []).filter((m: any) => m.id !== id) });
 
   const handleCreateCustom = () => {
     const name = customName.trim();
     if (!name) return alert("Please enter a name.");
-
     if (makerType === 'item') {
       const newItem = { key: name.toLowerCase().replace(/\s+/g, '_'), name, category: 'consumable', note: customDesc.trim() };
-      setState({ 
-        ...state, 
-        customItems: [...(state.customItems || []), newItem],
-        inventory: [...state.inventory, { name: newItem.name, qty: 1, itemKey: newItem.key, category: newItem.category, note: newItem.note }]
-      });
+      setState({ ...state, customItems: [...(state.customItems || []), newItem], inventory: [...state.inventory, { name: newItem.name, qty: 1, itemKey: newItem.key, category: newItem.category, note: newItem.note }] });
     } else {
       const newEquip = {
-        name,
-        slot: equipSlot,
+        name, slot: equipSlot,
         damage: equipSlot === 'weapon' ? (parseInt(equipDmg) || 0) : 0,
         attack: equipSlot === 'weapon' ? (parseInt(equipCrit) || 0) : 0,
         bonus: (equipSlot === 'head' || equipSlot === 'body' || equipSlot === 'shield') ? (parseInt(equipDef) || 0) : 0,
-        speed: 0,
-        properties: '',
-        passive: '',
-        note: 'Custom equipment',
-        mods: equipMods
+        speed: 0, properties: '', passive: '', note: 'Custom equipment', mods: equipMods
       };
-      setState({
-        ...state,
-        customEquips: [...(state.customEquips || []), newEquip],
-        inventory: [...state.inventory, { name: newEquip.name, qty: 1, itemKey: name.toLowerCase().replace(/\s+/g, '_'), category: equipSlot === 'weapon' ? 'weapon' : 'armor', note: 'Custom equipment' }]
-      });
+      setState({ ...state, customEquips: [...(state.customEquips || []), newEquip], inventory: [...state.inventory, { name: newEquip.name, qty: 1, itemKey: name.toLowerCase().replace(/\s+/g, '_'), category: equipSlot === 'weapon' ? 'weapon' : 'armor', note: 'Custom equipment' }] });
     }
-
-    setCustomName('');
-    setCustomDesc('');
-    setEquipDmg('0');
-    setEquipCrit('0');
-    setEquipDef('0');
-    setEquipMods([]);
+    setCustomName(''); setCustomDesc(''); setEquipDmg('0'); setEquipCrit('0'); setEquipDef('0'); setEquipMods([]);
   };
 
   const addEquipMod = () => {
@@ -1656,17 +1257,12 @@ export default function App() {
     setEquipMods([...equipMods, { stat: tempModStat, amount }]);
     setTempModAmount('0');
   };
-
-  const removeEquipMod = (index: number) => {
-    setEquipMods(equipMods.filter((_, i) => i !== index));
-  };
+  const removeEquipMod = (index: number) => setEquipMods(equipMods.filter((_, i) => i !== index));
 
   const currentWeaponEns = (state.weaponEnchantments || {})[state.weapon];
   const isCurrentWeaponUnlocked = currentWeaponEns?.unlocked === true;
   const currentEnchantmentKey = currentWeaponEns?.enchantment || null;
-  const currentEnchantmentData = currentEnchantmentKey
-    ? ENCHANTMENTS.find(e => e.key === currentEnchantmentKey) || null
-    : null;
+  const currentEnchantmentData = currentEnchantmentKey ? ENCHANTMENTS.find(e => e.key === currentEnchantmentKey) || null : null;
 
   const isItemUsable = (it: any) => {
     const cat = it.category || '';
@@ -1675,23 +1271,51 @@ export default function App() {
     return ENCHANTMENT_UNLOCK_KEYS.includes(k);
   };
 
+  const chooseDarkFateL6Spell = (choice: 'tearing' | 'terror') => {
+    if (!confirm(`Choose ${choice === 'tearing' ? 'Tearing' : 'Terror of Souls'} as your Level 6 spell? This cannot be changed.`)) return;
+    const spellName = choice === 'tearing' ? 'Tearing' : 'Terror of Souls';
+    const spell = SPELLBOOK.find(s => s.name === spellName);
+    if (!spell) { alert(`Could not find ${spellName} in the spellbook.`); return; }
+    setState(prev => {
+      const filtered = prev.learnedSpells.filter(s => !['Injuring', 'Tearing', 'Terror of Souls'].includes(s.name));
+      return {
+        ...prev,
+        darkFateL6Choice: choice,
+        darkFateL6Learned: true,
+        learnedSpells: [...filtered, spell],
+      };
+    });
+    setLastRoll(`Dark Fate: Learned ${spellName}!`);
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 font-sans text-gray-900">
       <div className="max-w-md mx-auto p-4 pb-24">
         <h1 className="text-xl font-bold text-center mb-1">T.A.D. Sheet</h1>
         <p className="text-center text-[10px] text-gray-400 mb-1">bundle: {activeVersion}</p>
-        {state.name.trim() && (
-          <p className="text-center text-sm text-gray-600 mb-3 italic">{state.name.trim()}</p>
-        )}
+        {state.name.trim() && <p className="text-center text-sm text-gray-600 mb-3 italic">{state.name.trim()}</p>}
         {!state.name.trim() && <div className="mb-3" />}
+
+        {state.blackBookResult && (
+          <div className="bg-purple-100 border border-purple-400 rounded p-2 mb-3 text-center">
+            <p className="text-xs font-bold text-purple-800">
+              ⚠ Black Book: {state.blackBookResult === 'insanity' ? 'Permanent Insanity' : 'Dark Fate'}
+            </p>
+            {state.blackBookResult === 'darkFate' && (
+              <p className="text-[10px] text-purple-700 mt-0.5">
+                L2: {state.darkFateLevel2Processed ? '✓ Injuring learned' : 'pending'} ·
+                L6: {state.darkFateL6Choice ? (state.darkFateL6Choice === 'tearing' ? 'Tearing' : 'Terror of Souls') : 'choice pending'} {state.darkFateL6Learned ? '(learned)' : ''}
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="flex bg-white border border-gray-300 mb-4 p-1">
           {[0, 1, 2].map(slot => (
             <button key={slot} onClick={() => setCurrentSlot(slot)}
-              className={`flex-1 py-1 text-sm font-bold ${
-                currentSlot === slot ? 'bg-gray-800 text-white' : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >Slot {slot + 1}</button>
+              className={`flex-1 py-1 text-sm font-bold ${currentSlot === slot ? 'bg-gray-800 text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
+              Slot {slot + 1}
+            </button>
           ))}
         </div>
 
@@ -1702,12 +1326,37 @@ export default function App() {
                 <span className="font-bold text-blue-700 text-lg">RESULT</span>
                 <button onClick={() => setLastRoll(null)} className="text-gray-500 hover:text-black font-bold text-2xl leading-none">&times;</button>
               </div>
-              <div className="text-sm whitespace-pre-wrap max-h-64 overflow-y-auto font-mono">
-                {lastRoll}
+              <div className="text-sm whitespace-pre-wrap max-h-64 overflow-y-auto font-mono">{lastRoll}</div>
+              <button onClick={() => setLastRoll(null)} className="mt-5 w-full bg-blue-600 text-white font-bold py-2 rounded hover:bg-blue-700">OK</button>
+            </div>
+          </div>
+        )}
+
+        {/* --- Dark Fate Level 6 Popup --- */}
+        {state.blackBookResult === 'darkFate' && state.level >= 6 && !state.darkFateL6Choice && (
+          <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-2xl max-w-md w-full p-5 border-2 border-purple-500">
+              <h2 className="text-lg font-bold text-purple-700 text-center mb-2">
+                ✦ Dark Fate — Choose Your Level 6 Spell
+              </h2>
+              <p className="text-xs text-gray-600 text-center mb-4">
+                You've reached Level 6. Choose one — this replaces Injuring and cannot be changed.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => chooseDarkFateL6Spell('tearing')}
+                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded"
+                >
+                  Tearing
+                </button>
+                <button
+                  onClick={() => chooseDarkFateL6Spell('terror')}
+                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded"
+                >
+                  Terror of Souls
+                </button>
               </div>
-              <button onClick={() => setLastRoll(null)} className="mt-5 w-full bg-blue-600 text-white font-bold py-2 rounded hover:bg-blue-700 transition-colors">
-                OK
-              </button>
+              <p className="text-[10px] text-gray-400 text-center mt-3 italic">This choice is permanent.</p>
             </div>
           </div>
         )}
@@ -1717,81 +1366,59 @@ export default function App() {
             <div className="bg-white p-5 rounded-lg w-full max-w-sm relative">
               <div className="flex justify-between items-center mb-2">
                 <h2 className="font-bold text-lg">Crafting: {craftingRecipe.name}</h2>
-                <button 
-                  onClick={() => setShowHelp(!showHelp)}
-                  className="w-6 h-6 rounded-full bg-gray-200 text-gray-700 font-bold flex items-center justify-center text-sm hover:bg-gray-300"
-                >
-                  ?
-                </button>
+                <button onClick={() => setShowHelp(!showHelp)} className="w-6 h-6 rounded-full bg-gray-200 text-gray-700 font-bold flex items-center justify-center text-sm hover:bg-gray-300">?</button>
               </div>
-              
               {showHelp ? (
                 <div className="bg-blue-50 border border-blue-200 p-3 mb-4 text-xs text-blue-900 rounded shadow-inner">
                   <p className="font-bold mb-1">{puzzleType === 'norinori' ? 'Norinori Rules:' : 'Kurodoko Rules:'}</p>
                   {puzzleType === 'norinori' ? (
                     <ul className="list-disc pl-4 space-y-1">
                       <li>Shade exactly 2 cells in each colored region.</li>
-                      <li>The two shaded cells in a region must be orthogonally adjacent.</li>
-                      <li>Shaded cells from different regions cannot touch (even diagonally, but only checking orthogonally here).</li>
+                      <li>The two shaded cells must be orthogonally adjacent.</li>
+                      <li>Shaded cells from different regions cannot touch orthogonally.</li>
                     </ul>
                   ) : (
                     <ul className="list-disc pl-4 space-y-1">
-                      <li>Numbers indicate how many white cells are visible from that cell (including itself) in all 4 directions.</li>
+                      <li>Numbers show visible white cells in all 4 directions.</li>
                       <li>Shade cells to block visibility.</li>
-                      <li>Shaded cells cannot touch each other (orthogonally).</li>
+                      <li>Shaded cells cannot touch orthogonally.</li>
                       <li>All white cells must be connected.</li>
                     </ul>
                   )}
                 </div>
               ) : (
                 <p className="text-xs text-gray-500 mb-4 text-center">
-                  {state.charClass === 'Artificer' ? 'Artificer: Solve the 6x6 Norinori grid.' : 'Non-crafter: Solve the 6x6 Kurodoko grid.'}
-                  <br/>Tap cells to shade them black. Press ? for rules.
+                  {state.charClass === 'Artificer' ? 'Artificer: 6x6 Norinori.' : 'Non-crafter: 6x6 Kurodoko.'}
+                  <br/>Tap cells to shade. Press ? for rules.
                 </p>
               )}
-              
               <div className="grid mx-auto mb-4" style={{ gridTemplateColumns: `repeat(6, minmax(0, 1fr))`, maxWidth: '300px' }}>
-                {puzzleGrid.map((row, r) => (
-                  row.map((cell, c) => {
-                    const isNorinori = puzzleType === 'norinori';
-                    
-                    let borderClasses = "";
-                    if (isNorinori) {
-                      if (r === 0 || puzzleGrid[r-1][c].region !== cell.region) borderClasses += " border-t-2 border-t-black";
-                      if (c === 0 || puzzleGrid[r][c-1].region !== cell.region) borderClasses += " border-l-2 border-l-black";
-                      if (r === 5 || puzzleGrid[r+1][c].region !== cell.region) borderClasses += " border-b-2 border-b-black";
-                      if (c === 5 || puzzleGrid[r][c+1].region !== cell.region) borderClasses += " border-r-2 border-r-black";
-                    } else {
-                      borderClasses = " border border-gray-400";
-                    }
-
-                    const bgClass = cell.isBlack 
-                      ? 'bg-gray-400' 
-                      : 'bg-white hover:bg-gray-100';
-                    
-                    return (
-                      <button
-                        key={`${r}-${c}`}
-                        onClick={() => {
-                          if (isNorinori || cell.num === 0) {
-                            let newGrid = [...puzzleGrid];
-                            newGrid[r][c].isBlack = !newGrid[r][c].isBlack;
-                            setPuzzleGrid(newGrid);
-                          }
-                        }}
-                        className={`aspect-square flex items-center justify-center text-lg font-bold ${bgClass} ${borderClasses} ${
-                          (!isNorinori && cell.num > 0) ? 'cursor-not-allowed text-gray-900' : 'cursor-pointer text-gray-900'
-                        }`}
-                      >
-                        {(!isNorinori && cell.num > 0) ? cell.num : ''}
-                      </button>
-                    );
-                  })
-                ))}
+                {puzzleGrid.map((row, r) => row.map((cell, c) => {
+                  const isNorinori = puzzleType === 'norinori';
+                  let borderClasses = "";
+                  if (isNorinori) {
+                    if (r === 0 || puzzleGrid[r-1][c].region !== cell.region) borderClasses += " border-t-2 border-t-black";
+                    if (c === 0 || puzzleGrid[r][c-1].region !== cell.region) borderClasses += " border-l-2 border-l-black";
+                    if (r === 5 || puzzleGrid[r+1][c].region !== cell.region) borderClasses += " border-b-2 border-b-black";
+                    if (c === 5 || puzzleGrid[r][c+1].region !== cell.region) borderClasses += " border-r-2 border-r-black";
+                  } else borderClasses = " border border-gray-400";
+                  const bgClass = cell.isBlack ? 'bg-gray-400' : 'bg-white hover:bg-gray-100';
+                  return (
+                    <button key={`${r}-${c}`}
+                      onClick={() => {
+                        if (isNorinori || cell.num === 0) {
+                          let newGrid = [...puzzleGrid];
+                          newGrid[r][c].isBlack = !newGrid[r][c].isBlack;
+                          setPuzzleGrid(newGrid);
+                        }
+                      }}
+                      className={`aspect-square flex items-center justify-center text-lg font-bold ${bgClass} ${borderClasses} ${(!isNorinori && cell.num > 0) ? 'cursor-not-allowed text-gray-900' : 'cursor-pointer text-gray-900'}`}>
+                      {(!isNorinori && cell.num > 0) ? cell.num : ''}
+                    </button>
+                  );
+                }))}
               </div>
-              
               {puzzleError && <p className="text-red-600 text-xs text-center mb-2 font-bold">{puzzleError}</p>}
-              
               <div className="flex gap-2">
                 <button onClick={() => setShowPuzzle(false)} className="flex-1 bg-gray-200 py-2 font-bold border border-gray-400">Cancel</button>
                 <button onClick={checkPuzzle} className="flex-1 bg-blue-600 text-white py-2 font-bold border border-blue-700 hover:bg-blue-700">Submit</button>
@@ -1805,90 +1432,46 @@ export default function App() {
             <div className={cardStyle}>
               <div className="flex flex-col">
                 <label className={labelStyle}>Character Name</label>
-                <input
-                  className={inputStyle}
-                  placeholder="put the name here"
-                  value={state.name}
-                  maxLength={40}
-                  onChange={e => setState({ ...state, name: e.target.value })}
-                />
+                <input className={inputStyle} placeholder="put the name here" value={state.name} maxLength={40}
+                  onChange={e => setState({ ...state, name: e.target.value })} />
               </div>
-
               <div className="flex flex-col">
                 <label className={labelStyle}>Class</label>
-                <select className={inputStyle} value={state.charClass} onChange={e => setState({...state, charClass: e.target.value})}>
+                <select className={inputStyle} value={state.charClass} onChange={e => setState({ ...state, charClass: e.target.value })}>
                   {Object.keys(CLASS_STATS).map(c => <option key={c}>{c}</option>)}
                 </select>
               </div>
-
               <div className="grid grid-cols-3 gap-3">
                 <div className="flex flex-col">
                   <div className="flex justify-between items-center mb-1">
                     <label className={`${labelStyle} mb-0`}>Level</label>
-                    <SmartNumberInput
-                      className="w-10 text-xs text-center border border-gray-300 rounded px-1"
-                      value={levelStep}
-                      min={1}
-                      onCommit={setLevelStep}
-                      title="Step"
-                    />
+                    <SmartNumberInput className="w-10 text-xs text-center border border-gray-300 rounded px-1" value={levelStep} min={1} onCommit={setLevelStep} title="Step" />
                   </div>
                   <div className="flex">
                     <button onClick={() => adjustLevel(-levelStep)} className="bg-gray-200 border border-gray-400 px-2 text-black font-bold">-</button>
-                    <SmartNumberInput
-                      className={`${inputStyle} text-center border-x-0 px-1`}
-                      value={state.level}
-                      min={1}
-                      onCommit={n => setState({ ...state, level: n })}
-                    />
+                    <SmartNumberInput className={`${inputStyle} text-center border-x-0 px-1`} value={state.level} min={1} onCommit={n => setState({ ...state, level: n })} />
                     <button onClick={() => adjustLevel(levelStep)} className="bg-gray-200 border border-gray-400 px-2 text-black font-bold">+</button>
                   </div>
                 </div>
-
                 <div className="flex flex-col">
                   <div className="flex justify-between items-center mb-1">
                     <label className={`${labelStyle} mb-0`}>HP</label>
-                    <SmartNumberInput
-                      className="w-10 text-xs text-center border border-gray-300 rounded px-1"
-                      value={hpStep}
-                      min={1}
-                      onCommit={setHpStep}
-                      title="Step"
-                    />
+                    <SmartNumberInput className="w-10 text-xs text-center border border-gray-300 rounded px-1" value={hpStep} min={1} onCommit={setHpStep} title="Step" />
                   </div>
                   <div className="flex">
                     <button onClick={() => adjustStat('hp', -hpStep)} className="bg-gray-200 border border-gray-400 px-2 text-black font-bold">-</button>
-                    <SmartNumberInput
-                      className={`${inputStyle} text-center border-x-0 px-1`}
-                      value={state.hp}
-                      min={0}
-                      max={100}
-                      onCommit={n => setState({ ...state, hp: Math.min(100, Math.max(0, n)) })}
-                    />
+                    <SmartNumberInput className={`${inputStyle} text-center border-x-0 px-1`} value={state.hp} min={0} max={100} onCommit={n => setState({ ...state, hp: Math.min(100, Math.max(0, n)) })} />
                     <button onClick={() => adjustStat('hp', hpStep)} className="bg-gray-200 border border-gray-400 px-2 text-black font-bold">+</button>
                   </div>
                 </div>
-
                 <div className="flex flex-col">
                   <div className="flex justify-between items-center mb-1">
                     <label className={`${labelStyle} mb-0`}>EP</label>
-                    <SmartNumberInput
-                      className="w-10 text-xs text-center border border-gray-300 rounded px-1"
-                      value={epStep}
-                      min={1}
-                      onCommit={setEpStep}
-                      title="Step"
-                    />
+                    <SmartNumberInput className="w-10 text-xs text-center border border-gray-300 rounded px-1" value={epStep} min={1} onCommit={setEpStep} title="Step" />
                   </div>
                   <div className="flex">
                     <button onClick={() => adjustStat('ep', -epStep)} className="bg-gray-200 border border-gray-400 px-2 text-black font-bold">-</button>
-                    <SmartNumberInput
-                      className={`${inputStyle} text-center border-x-0 px-1`}
-                      value={state.ep}
-                      min={0}
-                      max={maxEp}
-                      onCommit={n => setState({ ...state, ep: Math.min(maxEp, Math.max(0, n)) })}
-                    />
+                    <SmartNumberInput className={`${inputStyle} text-center border-x-0 px-1`} value={state.ep} min={0} max={maxEp} onCommit={n => setState({ ...state, ep: Math.min(maxEp, Math.max(0, n)) })} />
                     <button onClick={() => adjustStat('ep', epStep)} className="bg-gray-200 border border-gray-400 px-2 text-black font-bold">+</button>
                   </div>
                 </div>
@@ -1918,135 +1501,89 @@ export default function App() {
                 <div className="flex flex-col col-span-2">
                   <label className={labelStyle}>
                     Weapon
-                    {isCurrentWeaponUnlocked && currentEnchantmentData && (
-                      <span className="text-purple-600 ml-1" title="Enchanted">✦</span>
-                    )}
+                    {isCurrentWeaponUnlocked && currentEnchantmentData && <span className="text-purple-600 ml-1">✦</span>}
                   </label>
                   <div className="flex gap-2">
                     <div className="flex-1 bg-gray-50 border border-gray-300 px-2 py-2 text-sm min-h-[38px] flex items-center">
                       <span className="font-bold">{state.weapon || 'Unarmed'}</span>
                     </div>
-                    <button
-                      onClick={unequipWeapon}
-                      disabled={!state.weapon || state.weapon === 'Unarmed'}
-                      className={`px-3 py-1 text-xs font-bold border whitespace-nowrap ${
-                        state.weapon && state.weapon !== 'Unarmed'
-                          ? 'bg-gray-200 hover:bg-gray-300 border-gray-400 text-gray-700'
-                          : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
-                      }`}
-                    >
+                    <button onClick={unequipWeapon} disabled={!state.weapon || state.weapon === 'Unarmed'}
+                      className={`px-3 py-1 text-xs font-bold border whitespace-nowrap ${state.weapon && state.weapon !== 'Unarmed' ? 'bg-gray-200 hover:bg-gray-300 border-gray-400 text-gray-700' : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'}`}>
                       Unequip
                     </button>
                   </div>
                   <p className="text-[10px] text-gray-500 mt-1">Equip / swap weapons by using them in the Inventory tab.</p>
                 </div>
-
                 <div className="flex flex-col">
                   <label className={labelStyle}>Head</label>
-                  <select className={inputStyle} value={state.head} onChange={e => setState({...state, head: e.target.value})}>
+                  <select className={inputStyle} value={state.head} onChange={e => setState({ ...state, head: e.target.value })}>
                     {Object.keys(HEAD_ARMOR).map(a => <option key={a}>{a}</option>)}
                     {(state.customEquips || []).filter((e: any) => e.slot === 'head').map((e: any) => <option key={e.name}>{e.name}</option>)}
                   </select>
                 </div>
                 <div className="flex flex-col">
                   <label className={labelStyle}>Body</label>
-                  <select className={inputStyle} value={state.body} onChange={e => setState({...state, body: e.target.value})}>
+                  <select className={inputStyle} value={state.body} onChange={e => setState({ ...state, body: e.target.value })}>
                     {Object.keys(BODY_ARMOR).map(a => <option key={a}>{a}</option>)}
                     {(state.customEquips || []).filter((e: any) => e.slot === 'body').map((e: any) => <option key={e.name}>{e.name}</option>)}
                   </select>
                 </div>
                 <div className="flex flex-col col-span-2">
                   <label className={labelStyle}>Shield</label>
-                  <select className={inputStyle} value={state.shield} onChange={e => setState({...state, shield: e.target.value})}>
+                  <select className={inputStyle} value={state.shield} onChange={e => setState({ ...state, shield: e.target.value })}>
                     {Object.keys(SHIELD_ARMOR).map(a => <option key={a}>{a}</option>)}
                     {(state.customEquips || []).filter((e: any) => e.slot === 'shield').map((e: any) => <option key={e.name}>{e.name}</option>)}
                   </select>
                 </div>
                 <div className="flex flex-col col-span-2">
                   <label className={labelStyle}>Accessory</label>
-                  <select 
-                    className={inputStyle} 
-                    value={state.accessory || 'None'} 
-                    onChange={e => {
-                      const newAcc = e.target.value;
-                      if (newAcc === state.accessory) return;
-                      
-                      let newInv = [...state.inventory];
-                      
-                      if (state.accessory && state.accessory !== 'None') {
-                        const oldDbItem = ITEM_DATABASE.find(i => i.name === state.accessory);
-                        if (oldDbItem) {
-                          const { newInv: invWithOld } = addItemToInventory({
-                            name: oldDbItem.name, qty: 1, key: oldDbItem.key, category: oldDbItem.category, note: oldDbItem.note
-                          }, newInv);
-                          newInv = invWithOld;
-                        } else {
-                          const { newInv: invWithOld } = addItemToInventory({
-                            name: state.accessory, qty: 1
-                          }, newInv);
-                          newInv = invWithOld;
-                        }
+                  <select className={inputStyle} value={state.accessory || 'None'} onChange={e => {
+                    const newAcc = e.target.value;
+                    if (newAcc === state.accessory) return;
+                    let newInv = [...state.inventory];
+                    if (state.accessory && state.accessory !== 'None') {
+                      const oldDbItem = ITEM_DATABASE.find(i => i.name === state.accessory);
+                      if (oldDbItem) {
+                        const { newInv: invWithOld } = addItemToInventory({ name: oldDbItem.name, qty: 1, key: oldDbItem.key, category: oldDbItem.category, note: oldDbItem.note }, newInv);
+                        newInv = invWithOld;
+                      } else {
+                        const { newInv: invWithOld } = addItemToInventory({ name: state.accessory, qty: 1 }, newInv);
+                        newInv = invWithOld;
                       }
-                      
-                      setState({ ...state, accessory: newAcc, inventory: newInv });
-                    }}
-                  >
+                    }
+                    setState({ ...state, accessory: newAcc, inventory: newInv });
+                  }}>
                     <option value="None">None</option>
-                    {state.accessory && state.accessory !== 'None' && (
-                      <option value={state.accessory}>{state.accessory}</option>
-                    )}
+                    {state.accessory && state.accessory !== 'None' && <option value={state.accessory}>{state.accessory}</option>}
                   </select>
                 </div>
                 <div className="flex flex-col col-span-2 mt-2">
-                  <button
-                    onClick={triggerCharm}
-                    disabled={!isCharmEquipped}
-                    className={`w-full py-2 text-sm font-bold border ${
-                      isCharmEquipped 
-                        ? 'bg-purple-100 hover:bg-purple-200 border-purple-400 text-purple-700' 
-                        : 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed'
-                    }`}
-                  >
+                  <button onClick={triggerCharm} disabled={!isCharmEquipped}
+                    className={`w-full py-2 text-sm font-bold border ${isCharmEquipped ? 'bg-purple-100 hover:bg-purple-200 border-purple-400 text-purple-700' : 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed'}`}>
                     Trigger Charm
                   </button>
                 </div>
               </div>
-
               {isCurrentWeaponUnlocked && (
                 <div className="mt-3 pt-3 border-t border-gray-200">
                   <h3 className="text-sm font-bold text-purple-700 mb-2">✦ Weapon Enchantments</h3>
-                  <p className="text-[11px] text-gray-600 mb-2">
-                    On <span className="font-bold text-purple-700">{state.weapon}</span> (max 1, permanent):
-                  </p>
+                  <p className="text-[11px] text-gray-600 mb-2">On <span className="font-bold text-purple-700">{state.weapon}</span> (max 1, permanent):</p>
                   {currentEnchantmentData ? (
                     <div className="mb-2 bg-purple-50 border border-purple-200 p-2">
-                      <p className="text-xs text-purple-700">
-                        ✦ <span className="font-bold">{currentEnchantmentData.name}</span> — {currentEnchantmentData.desc}
-                      </p>
+                      <p className="text-xs text-purple-700">✦ <span className="font-bold">{currentEnchantmentData.name}</span> — {currentEnchantmentData.desc}</p>
                     </div>
                   ) : (
                     <>
                       <p className="text-xs text-gray-500 mb-2 italic">No enchantment applied yet.</p>
                       <div className="flex flex-wrap gap-1">
                         {ENCHANTMENTS.map(en => (
-                          <button
-                            key={en.key}
-                            title={en.desc}
-                            onClick={() => {
-                              if (!confirm(`Permanently enchant ${state.weapon} with "${en.name}"? This cannot be undone — a weapon can only ever hold one enchantment.`)) return;
-                              setState(prev => ({
-                                ...prev,
-                                weaponEnchantments: {
-                                  ...prev.weaponEnchantments,
-                                  [prev.weapon]: {
-                                    unlocked: true,
-                                    enchantment: en.key,
-                                  },
-                                },
-                              }));
-                            }}
-                            className="text-[10px] bg-purple-100 hover:bg-purple-200 border border-purple-400 text-purple-700 font-bold px-2 py-1"
-                          >
+                          <button key={en.key} title={en.desc} onClick={() => {
+                            if (!confirm(`Permanently enchant ${state.weapon} with "${en.name}"? This cannot be undone.`)) return;
+                            setState(prev => ({
+                              ...prev,
+                              weaponEnchantments: { ...prev.weaponEnchantments, [prev.weapon]: { unlocked: true, enchantment: en.key } },
+                            }));
+                          }} className="text-[10px] bg-purple-100 hover:bg-purple-200 border border-purple-400 text-purple-700 font-bold px-2 py-1">
                             + {en.name}
                           </button>
                         ))}
@@ -2058,9 +1595,7 @@ export default function App() {
             </div>
 
             <div className="bg-white border border-gray-300 p-4 flex justify-between items-center">
-              <div>
-                <p className="font-bold text-sm">Damage: <span className="text-blue-600">{die} {finalDmg >= 0 ? `+${finalDmg}` : finalDmg}</span></p>
-              </div>
+              <div><p className="font-bold text-sm">Damage: <span className="text-blue-600">{die} {finalDmg >= 0 ? `+${finalDmg}` : finalDmg}</span></p></div>
               <div className="flex gap-2">
                 <button onClick={rollAttack} className="bg-gray-200 hover:bg-gray-300 border border-gray-400 text-black font-bold px-3 py-1 text-xs">Roll Atk</button>
                 <button onClick={rollDamage} className="bg-gray-200 hover:bg-gray-300 border border-gray-400 text-black font-bold px-3 py-1 text-xs">Roll Dmg</button>
@@ -2070,51 +1605,31 @@ export default function App() {
             <div className="bg-white border border-gray-300 p-4 text-xs space-y-1">
               <h2 className="text-sm font-bold border-b border-gray-300 pb-2 mb-2">Equipped Properties</h2>
               {(wData.properties || (isCurrentWeaponUnlocked && currentEnchantmentData)) && (
-                <p>
-                  <span className={`font-bold ${isCurrentWeaponUnlocked && currentEnchantmentData ? 'text-purple-700' : ''}`}>
-                    Weapon:
-                  </span>{' '}
-                  {wData.properties || state.weapon}
-                  {isCurrentWeaponUnlocked && currentEnchantmentData && (
-                    <span className="text-purple-600 ml-1 font-bold">✦ Enchanted</span>
-                  )}
-                </p>
+                <p><span className="font-bold">Weapon:</span> {wData.properties || state.weapon}{isCurrentWeaponUnlocked && currentEnchantmentData && <span className="text-purple-600 ml-1 font-bold">✦ Enchanted</span>}</p>
               )}
               {hData.passive && <p><span className="font-bold">Head:</span> {hData.passive}</p>}
               {bData.passive && <p><span className="font-bold">Body:</span> {bData.passive}</p>}
               {sData.passive && <p><span className="font-bold">Shield:</span> {sData.passive}</p>}
-              
               {wData.mods && wData.mods.length > 0 && <p><span className="font-bold">Weapon Mods:</span> {wData.mods.map((m: any) => `${m.amount > 0 ? '+' : ''}${m.amount} ${m.stat}`).join(', ')}</p>}
-              {hData.mods && hData.mods.length > 0 && <p><span className="font-bold">Head Mods:</span> {hData.mods.map((m: any) => `${m.amount > 0 ? '+' : ''}${m.amount} ${m.stat}`).join(', ')}</p>}
-              {bData.mods && bData.mods.length > 0 && <p><span className="font-bold">Body Mods:</span> {bData.mods.map((m: any) => `${m.amount > 0 ? '+' : ''}${m.amount} ${m.stat}`).join(', ')}</p>}
-              {sData.mods && sData.mods.length > 0 && <p><span className="font-bold">Shield Mods:</span> {sData.mods.map((m: any) => `${m.amount > 0 ? '+' : ''}${m.amount} ${m.stat}`).join(', ')}</p>}
-
               {isCurrentWeaponUnlocked && currentEnchantmentData && (
                 <div className="text-purple-700 pt-1">
                   <p className="font-bold">Weapon Enchantment:</p>
                   <p className="ml-2">✦ <span className="font-bold">{currentEnchantmentData.name}</span>: {currentEnchantmentData.desc}</p>
                 </div>
               )}
-
               {(() => {
                 const accData = ITEM_DATABASE.find(i => i.name === state.accessory);
                 return accData?.note ? <p><span className="font-bold">Accessory:</span> {accData.note}</p> : null;
               })()}
-
-              {(!wData.properties && !hData.passive && !bData.passive && !sData.passive && !ITEM_DATABASE.find(i => i.name === state.accessory)?.note && (!wData.mods || wData.mods.length === 0) && !(isCurrentWeaponUnlocked && currentEnchantmentData)) && (
-                <p className="text-gray-500 italic">No special properties on current equipment.</p>
-              )}
             </div>
-            
+
             <div className={cardStyle}>
               <h2 className="text-sm font-bold border-b border-gray-300 pb-2 mb-2">Reactions</h2>
               {activeReactions.map((r, i) => (
-                 <div key={i} className="flex justify-between items-center text-xs pb-2 border-b border-gray-100 last:border-0">
-                   <div className="pr-2">
-                     <span className="font-bold">{r.name} ({r.ep} EP):</span> {r.note}
-                   </div>
-                   <button onClick={() => useMove(r)} className="bg-gray-200 hover:bg-gray-300 border border-gray-400 text-black font-bold px-2 py-1 text-[10px]">Use</button>
-                 </div>
+                <div key={i} className="flex justify-between items-center text-xs pb-2 border-b border-gray-100 last:border-0">
+                  <div className="pr-2"><span className="font-bold">{r.name} ({r.ep} EP):</span> {r.note}</div>
+                  <button onClick={() => useMove(r)} className="bg-gray-200 hover:bg-gray-300 border border-gray-400 text-black font-bold px-2 py-1 text-[10px]">Use</button>
+                </div>
               ))}
             </div>
 
@@ -2128,86 +1643,56 @@ export default function App() {
             <div className="bg-white border border-gray-300">
               {state.inventory.length === 0 ? (
                 <p className="text-gray-500 text-sm p-4 text-center">Inventory is empty.</p>
-              ) : (
-                state.inventory.map((item, i) => {
-                  const usable = isItemUsable(item);
-                  const enchantData = (state.weaponEnchantments || {})[item.name];
-                  const hasEnchant = !!enchantData?.enchantment;
-                  const isEquippedWeapon = item.name === state.weapon && !!item.category && ['weapon'].includes(item.category);
-                  return (
-                    <div key={i} className="flex justify-between items-start p-3 border-b border-gray-200 last:border-0">
-                      <div className="pr-3 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className={`text-sm font-bold ${isEquippedWeapon ? 'text-blue-700' : ''}`}>{item.name}</span>
-                          <span className="text-gray-500 text-xs">x{item.qty}</span>
-                          {item.category && (
-                            <span className="text-[9px] uppercase tracking-wide text-gray-500 border border-gray-300 px-1 leading-tight">
-                              {item.category}
-                            </span>
-                          )}
-                          {hasEnchant && (
-                            <span className="text-[9px] uppercase tracking-wide text-purple-600 border border-purple-400 px-1 leading-tight font-bold">
-                              ✦ Enchanted
-                            </span>
-                          )}
-                          {isEquippedWeapon && (
-                            <span className="text-[9px] uppercase tracking-wide text-blue-600 border border-blue-400 px-1 leading-tight font-bold">
-                              Equipped
-                            </span>
-                          )}
-                        </div>
-                        {item.note && <p className="text-[10px] text-gray-500 mt-0.5 leading-snug">{item.note}</p>}
-                      </div>
-                      <div className="flex gap-2 shrink-0">
-                        {usable && (
-                          <button 
-                            className="bg-blue-100 hover:bg-blue-200 border border-blue-400 text-blue-700 font-bold px-3 py-1 text-xs" 
-                            onClick={() => handleUseItem(i)}
-                          >
-                            Use
-                          </button>
+              ) : state.inventory.map((item, i) => {
+                const usable = isItemUsable(item);
+                const enchantData = (state.weaponEnchantments || {})[item.name];
+                const hasEnchant = !!enchantData?.enchantment;
+                const isEquippedWeapon = item.name === state.weapon && !!item.category && ['weapon'].includes(item.category);
+                const isBlackBook = item.itemKey === 'black_book' || item.name === 'Black Book';
+                return (
+                  <div key={i} className="flex justify-between items-start p-3 border-b border-gray-200 last:border-0">
+                    <div className="pr-3 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`text-sm font-bold ${isEquippedWeapon ? 'text-blue-700' : ''}`}>{item.name}</span>
+                        <span className="text-gray-500 text-xs">x{item.qty}</span>
+                        {item.category && <span className="text-[9px] uppercase tracking-wide text-gray-500 border border-gray-300 px-1 leading-tight">{item.category}</span>}
+                        {hasEnchant && <span className="text-[9px] uppercase tracking-wide text-purple-600 border border-purple-400 px-1 leading-tight font-bold">✦ Enchanted</span>}
+                        {isEquippedWeapon && <span className="text-[9px] uppercase tracking-wide text-blue-600 border border-blue-400 px-1 leading-tight font-bold">Equipped</span>}
+                        {isBlackBook && state.blackBookResult && (
+                          <span className="text-[9px] uppercase tracking-wide text-purple-600 border border-purple-400 px-1 leading-tight font-bold">
+                            Used: {state.blackBookResult === 'insanity' ? 'Insanity' : 'Dark Fate'}
+                          </span>
                         )}
-                        <button 
-                          className="bg-red-100 hover:bg-red-200 border border-red-400 text-red-700 font-bold px-3 py-1 text-xs" 
-                          onClick={() => {
-                            const newInv = [...state.inventory];
-                            newInv.splice(i, 1);
-                            setState({...state, inventory: newInv});
-                          }}
-                        >
-                          Remove
-                        </button>
                       </div>
+                      {item.note && <p className="text-[10px] text-gray-500 mt-0.5 leading-snug">{item.note}</p>}
                     </div>
-                  );
-                })
-              )}
+                    <div className="flex gap-2 shrink-0">
+                      {usable && <button className="bg-blue-100 hover:bg-blue-200 border border-blue-400 text-blue-700 font-bold px-3 py-1 text-xs" onClick={() => handleUseItem(i)}>Use</button>}
+                      <button className="bg-red-100 hover:bg-red-200 border border-red-400 text-red-700 font-bold px-3 py-1 text-xs"
+                        onClick={() => { const newInv = [...state.inventory]; newInv.splice(i, 1); setState({ ...state, inventory: newInv }); }}>
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
             <div className="bg-white border border-gray-300 p-4 space-y-2">
               <h3 className="text-sm font-bold mb-1">Add Item</h3>
-              
               <div className="flex gap-2 items-end">
                 <div className="flex-1 flex flex-col relative">
                   <label className={labelStyle}>Name</label>
-                  <input
-                    className={inputStyle}
-                    placeholder="e.g. Wood, Healing Potion..."
-                    value={itemNameInput}
+                  <input className={inputStyle} placeholder="e.g. Wood, Healing Potion..." value={itemNameInput}
                     onChange={e => { setItemNameInput(e.target.value); setShowSuggestions(true); }}
                     onFocus={() => setShowSuggestions(true)}
-                    onBlur={() => setTimeout(() => setShowSuggestions(false), 120)}
-                  />
+                    onBlur={() => setTimeout(() => setShowSuggestions(false), 120)} />
                   {showSuggestions && suggestions.length > 0 && (
                     <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-400 shadow-lg z-30 max-h-56 overflow-y-auto">
                       {suggestions.map((s: any) => (
-                        <button
-                          key={s.key || s.name}
-                          type="button"
-                          onMouseDown={e => e.preventDefault()}
+                        <button key={s.key || s.name} type="button" onMouseDown={e => e.preventDefault()}
                           onClick={() => { setItemNameInput(s.name); setShowSuggestions(false); }}
-                          className="w-full text-left px-3 py-2 text-xs hover:bg-blue-50 border-b border-gray-100 last:border-0"
-                        >
+                          className="w-full text-left px-3 py-2 text-xs hover:bg-blue-50 border-b border-gray-100 last:border-0">
                           <div className="flex justify-between items-center gap-2">
                             <span className="font-bold text-gray-900">{s.name}</span>
                             <span className="text-[9px] uppercase text-gray-500 shrink-0">{s.category || s.slot}</span>
@@ -2218,96 +1703,44 @@ export default function App() {
                     </div>
                   )}
                 </div>
-                
                 <div className="w-20 flex flex-col">
                   <label className={labelStyle}>Qty</label>
-                  <input
-                    type="number"
-                    className={inputStyle}
-                    value={itemQtyInput}
-                    onChange={e => setItemQtyInput(e.target.value)}
-                  />
+                  <input type="number" className={inputStyle} value={itemQtyInput} onChange={e => setItemQtyInput(e.target.value)} />
                 </div>
-                
-                <button onClick={addItem} className="bg-gray-200 hover:bg-gray-300 border border-gray-400 text-black font-bold px-4 py-2 text-sm">
-                  Add
-                </button>
+                <button onClick={addItem} className="bg-gray-200 hover:bg-gray-300 border border-gray-400 text-black font-bold px-4 py-2 text-sm">Add</button>
               </div>
-
               {willRename ? (
-                <p className="text-[11px] text-blue-600 font-semibold mt-1">
-                  Will add: {resolvedPreview!.name} <span className="text-gray-500 font-normal">({resolvedPreview!.category})</span>
-                </p>
+                <p className="text-[11px] text-blue-600 font-semibold mt-1">Will add: {resolvedPreview!.name} <span className="text-gray-500 font-normal">({resolvedPreview!.category})</span></p>
               ) : (
-                <p className="text-[10px] text-gray-500 mt-1">
-                  Known items auto-fill canonical names &amp; metadata.
-                </p>
+                <p className="text-[10px] text-gray-500 mt-1">Known items auto-fill canonical names &amp; metadata.</p>
               )}
             </div>
 
             <div className="bg-white border border-gray-300 p-4 space-y-3">
               <h3 className="text-sm font-bold">Custom Creator</h3>
-              
               <div className="flex gap-2 mb-2">
-                <button 
-                  onClick={() => setMakerType('item')}
-                  className={`flex-1 py-1 text-xs font-bold border ${makerType === 'item' ? 'bg-blue-100 border-blue-400 text-blue-700' : 'bg-gray-100 border-gray-300 text-gray-600'}`}
-                >
-                  Item
-                </button>
-                <button 
-                  onClick={() => setMakerType('equip')}
-                  className={`flex-1 py-1 text-xs font-bold border ${makerType === 'equip' ? 'bg-blue-100 border-blue-400 text-blue-700' : 'bg-gray-100 border-gray-300 text-gray-600'}`}
-                >
-                  Equipment
-                </button>
+                <button onClick={() => setMakerType('item')} className={`flex-1 py-1 text-xs font-bold border ${makerType === 'item' ? 'bg-blue-100 border-blue-400 text-blue-700' : 'bg-gray-100 border-gray-300 text-gray-600'}`}>Item</button>
+                <button onClick={() => setMakerType('equip')} className={`flex-1 py-1 text-xs font-bold border ${makerType === 'equip' ? 'bg-blue-100 border-blue-400 text-blue-700' : 'bg-gray-100 border-gray-300 text-gray-600'}`}>Equipment</button>
               </div>
-
-              <input
-                className={inputStyle}
-                placeholder="Name"
-                value={customName}
-                onChange={e => setCustomName(e.target.value)}
-              />
-
+              <input className={inputStyle} placeholder="Name" value={customName} onChange={e => setCustomName(e.target.value)} />
               {makerType === 'item' ? (
-                <textarea
-                  className={`${inputStyle} h-16 resize-none`}
-                  placeholder="Description"
-                  value={customDesc}
-                  onChange={e => setCustomDesc(e.target.value)}
-                />
+                <textarea className={`${inputStyle} h-16 resize-none`} placeholder="Description" value={customDesc} onChange={e => setCustomDesc(e.target.value)} />
               ) : (
                 <>
-                  <select
-                    className={inputStyle}
-                    value={equipSlot}
-                    onChange={e => setEquipSlot(e.target.value as any)}
-                  >
+                  <select className={inputStyle} value={equipSlot} onChange={e => setEquipSlot(e.target.value as any)}>
                     <option value="weapon">Weapon</option>
                     <option value="head">Head Armor</option>
                     <option value="body">Body Armor</option>
                     <option value="shield">Shield</option>
                   </select>
-
                   {equipSlot === 'weapon' ? (
                     <div className="flex gap-2">
-                      <div className="flex-1 flex flex-col">
-                        <label className={labelStyle}>Damage Bonus</label>
-                        <input type="number" className={inputStyle} value={equipDmg} onChange={e => setEquipDmg(e.target.value)} />
-                      </div>
-                      <div className="flex-1 flex flex-col">
-                        <label className={labelStyle}>Crit Bonus</label>
-                        <input type="number" className={inputStyle} value={equipCrit} onChange={e => setEquipCrit(e.target.value)} />
-                      </div>
+                      <div className="flex-1 flex flex-col"><label className={labelStyle}>Damage Bonus</label><input type="number" className={inputStyle} value={equipDmg} onChange={e => setEquipDmg(e.target.value)} /></div>
+                      <div className="flex-1 flex flex-col"><label className={labelStyle}>Crit Bonus</label><input type="number" className={inputStyle} value={equipCrit} onChange={e => setEquipCrit(e.target.value)} /></div>
                     </div>
                   ) : (
-                    <div className="flex flex-col">
-                      <label className={labelStyle}>Defense Bonus</label>
-                      <input type="number" className={inputStyle} value={equipDef} onChange={e => setEquipDef(e.target.value)} />
-                    </div>
+                    <div className="flex flex-col"><label className={labelStyle}>Defense Bonus</label><input type="number" className={inputStyle} value={equipDef} onChange={e => setEquipDef(e.target.value)} /></div>
                   )}
-
                   <div className="border-t border-gray-200 pt-2 mt-2">
                     <label className={labelStyle}>Stat Modifiers</label>
                     <div className="space-y-1 mb-2">
@@ -2335,11 +1768,7 @@ export default function App() {
                   </div>
                 </>
               )}
-
-              <button 
-                onClick={handleCreateCustom}
-                className="w-full mt-2 bg-green-600 text-white font-bold py-2 text-sm hover:bg-green-700"
-              >
+              <button onClick={handleCreateCustom} className="w-full mt-2 bg-green-600 text-white font-bold py-2 text-sm hover:bg-green-700">
                 Create {makerType === 'item' ? 'Item' : 'Equipment'}
               </button>
             </div>
@@ -2349,14 +1778,10 @@ export default function App() {
               {ALL_CRAFTING_RECIPES.map(recipe => {
                 const isKnown = state.learnedRecipes.includes(recipe.key);
                 if (!isKnown) return null;
-
                 const canCraft = recipe.ingredients.every(ing => {
-                  const total = state.inventory
-                    .filter(invItem => (invItem.itemKey || invItem.name.toLowerCase().replace(/\s+/g, '_')) === ing.key || invItem.name.toLowerCase() === ing.name.toLowerCase())
-                    .reduce((sum, invItem) => sum + invItem.qty, 0);
+                  const total = state.inventory.filter(invItem => (invItem.itemKey || invItem.name.toLowerCase().replace(/\s+/g, '_')) === ing.key || invItem.name.toLowerCase() === ing.name.toLowerCase()).reduce((sum, invItem) => sum + invItem.qty, 0);
                   return total >= ing.qty;
                 });
-
                 return (
                   <div key={recipe.key} className="border-b border-gray-200 last:border-0 py-3">
                     <div className="flex justify-between items-start mb-1">
@@ -2364,29 +1789,16 @@ export default function App() {
                         <p className="text-sm font-bold text-gray-900">{recipe.name}</p>
                         <p className="text-[10px] text-gray-500 mt-0.5">{recipe.note}</p>
                       </div>
-                      <button
-                        onClick={() => startCraft(recipe)}
-                        disabled={!canCraft}
-                        className={`px-3 py-1 text-xs font-bold border whitespace-nowrap ${
-                          canCraft 
-                            ? 'bg-green-100 hover:bg-green-200 border-green-400 text-green-700' 
-                            : 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed'
-                        }`}
-                      >
+                      <button onClick={() => startCraft(recipe)} disabled={!canCraft}
+                        className={`px-3 py-1 text-xs font-bold border whitespace-nowrap ${canCraft ? 'bg-green-100 hover:bg-green-200 border-green-400 text-green-700' : 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed'}`}>
                         Craft
                       </button>
                     </div>
                     <div className="flex flex-wrap gap-2 text-[10px] mt-1 text-gray-600">
                       <span className="font-semibold">Requires:</span>
                       {recipe.ingredients.map((ing, idx) => {
-                        const owned = state.inventory
-                          .filter(invItem => (invItem.itemKey || invItem.name.toLowerCase().replace(/\s+/g, '_')) === ing.key || invItem.name.toLowerCase() === ing.name.toLowerCase())
-                          .reduce((sum, invItem) => sum + invItem.qty, 0);
-                        return (
-                          <span key={idx} className={owned >= ing.qty ? 'text-green-600 font-bold' : 'text-red-600 font-bold'}>
-                            {ing.qty}x {ing.name} ({owned})
-                          </span>
-                        );
+                        const owned = state.inventory.filter(invItem => (invItem.itemKey || invItem.name.toLowerCase().replace(/\s+/g, '_')) === ing.key || invItem.name.toLowerCase() === ing.name.toLowerCase()).reduce((sum, invItem) => sum + invItem.qty, 0);
+                        return <span key={idx} className={owned >= ing.qty ? 'text-green-600 font-bold' : 'text-red-600 font-bold'}>{ing.qty}x {ing.name} ({owned})</span>;
                       })}
                     </div>
                   </div>
@@ -2402,6 +1814,11 @@ export default function App() {
         {tab === 'spells' && (
           <div className="space-y-4">
             <h2 className="text-lg font-bold border-b border-gray-300 pb-2">Spellbook</h2>
+            {(state.permanentEffects || []).includes('Insanity') && (
+              <div className="bg-purple-50 border border-purple-300 p-2 rounded text-xs text-purple-800">
+                <span className="font-bold">Permanent Insanity:</span> Support spells and Visions of the Imminent are blocked.
+              </div>
+            )}
             {state.learnedSpells.length > 0 && (
               <div className="mb-6">
                 <h3 className="text-sm font-bold text-blue-600 mb-2 uppercase tracking-wide">Learned Spells</h3>
@@ -2421,26 +1838,19 @@ export default function App() {
           <div className="space-y-4">
             <h2 className="text-lg font-bold border-b border-gray-300 pb-2">Scroll Skills</h2>
 
+            {state.blackBookResult === 'darkFate' && state.darkFateL6Choice && (
+              <div className="bg-purple-50 border border-purple-300 p-3 rounded text-xs text-purple-800">
+                <span className="font-bold">Dark Fate L6 spell:</span> {state.darkFateL6Choice === 'tearing' ? 'Tearing' : 'Terror of Souls'} ✓
+              </div>
+            )}
+
             {showCustomSkillMaker && (
               <div className="bg-purple-50 border border-purple-300 p-4 space-y-3">
-                <h3 className="text-sm font-bold text-purple-700">
-                  ✦ Custom Skill Maker (Level {state.level === 5 ? 5 : 10})
-                </h3>
-                <p className="text-[10px] text-purple-700">
-                  Design one signature move. Using it adds EP to you — the exhaust cost of your own invention.
-                </p>
-                <input
-                  className={inputStyle}
-                  placeholder="Skill Name"
-                  value={customSkillName}
-                  onChange={e => setCustomSkillName(e.target.value)}
-                />
+                <h3 className="text-sm font-bold text-purple-700">✦ Custom Skill Maker (Level {state.level === 5 ? 5 : 10})</h3>
+                <p className="text-[10px] text-purple-700">Design one signature move.</p>
+                <input className={inputStyle} placeholder="Skill Name" value={customSkillName} onChange={e => setCustomSkillName(e.target.value)} />
                 <div className="flex gap-2">
-                  <select
-                    className={`${inputStyle} flex-1`}
-                    value={customSkillEpType}
-                    onChange={e => setCustomSkillEpType(e.target.value as any)}
-                  >
+                  <select className={`${inputStyle} flex-1`} value={customSkillEpType} onChange={e => setCustomSkillEpType(e.target.value as any)}>
                     <option value="d4">d4 EP</option>
                     <option value="d6">d6 EP</option>
                     <option value="d12">d12 EP</option>
@@ -2448,27 +1858,11 @@ export default function App() {
                     <option value="flat">Flat EP</option>
                   </select>
                   {customSkillEpType === 'flat' && (
-                    <input
-                      type="number"
-                      className={`${inputStyle} w-24`}
-                      placeholder="EP"
-                      value={customSkillEpValue}
-                      onChange={e => setCustomSkillEpValue(e.target.value)}
-                    />
+                    <input type="number" className={`${inputStyle} w-24`} placeholder="EP" value={customSkillEpValue} onChange={e => setCustomSkillEpValue(e.target.value)} />
                   )}
                 </div>
-                <textarea
-                  className={`${inputStyle} h-16 resize-none`}
-                  placeholder="What does this skill do?"
-                  value={customSkillDesc}
-                  onChange={e => setCustomSkillDesc(e.target.value)}
-                />
-                <button
-                  onClick={createCustomSkill}
-                  className="w-full bg-purple-600 text-white font-bold py-2 text-sm hover:bg-purple-700"
-                >
-                  Create Custom Skill
-                </button>
+                <textarea className={`${inputStyle} h-16 resize-none`} placeholder="What does this skill do?" value={customSkillDesc} onChange={e => setCustomSkillDesc(e.target.value)} />
+                <button onClick={createCustomSkill} className="w-full bg-purple-600 text-white font-bold py-2 text-sm hover:bg-purple-700">Create Custom Skill</button>
               </div>
             )}
 
@@ -2479,21 +1873,11 @@ export default function App() {
                   {customSkills.map((sk: any) => (
                     <div key={sk.id} className="flex justify-between items-center py-3 border-b border-purple-100 last:border-0">
                       <div className="pr-3">
-                        <p className="font-bold text-sm text-purple-700">
-                          {sk.name}{' '}
-                          <span className="text-[10px] font-normal">(Lv {sk.milestone})</span>
-                        </p>
-                        <p className="text-xs text-gray-600 mt-0.5">
-                          {sk.epType === 'flat' ? `${sk.epValue} EP` : `1${sk.epType} EP`} - {sk.description || 'No description.'}
-                        </p>
+                        <p className="font-bold text-sm text-purple-700">{sk.name} <span className="text-[10px] font-normal">(Lv {sk.milestone})</span></p>
+                        <p className="text-xs text-gray-600 mt-0.5">{sk.epType === 'flat' ? `${sk.epValue} EP` : `1${sk.epType} EP`} - {sk.description || 'No description.'}</p>
                       </div>
                       <div className="flex gap-2 shrink-0">
-                        <button
-                          onClick={() => useCustomSkill(sk)}
-                          className="bg-purple-100 hover:bg-purple-200 border border-purple-400 text-purple-700 font-bold px-3 py-1 text-xs"
-                        >
-                          Use
-                        </button>
+                        <button onClick={() => useCustomSkill(sk)} className="bg-purple-100 hover:bg-purple-200 border border-purple-400 text-purple-700 font-bold px-3 py-1 text-xs">Use</button>
                       </div>
                     </div>
                   ))}
@@ -2520,26 +1904,33 @@ export default function App() {
           <div className="space-y-4">
             <h2 className="text-lg font-bold border-b border-gray-300 pb-2">Status Effects ({state.effects.length}/5)</h2>
             <div className="bg-white border border-gray-300 p-4">
-               <button onClick={triggerEffects} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold p-2 text-sm mb-4">Trigger Active Effects</button>
-               <div className="space-y-3">
-                 {Object.keys(STATUS_EFFECTS).map(eff => {
-                   const isActive = state.effects.includes(eff);
-                   return (
-                     <div key={eff} className="flex justify-between items-center border-b border-gray-100 pb-2 last:border-0">
-                       <div>
-                         <p className={`text-sm font-bold ${isActive ? 'text-red-600' : ''}`}>{eff}</p>
-                         <p className="text-[10px] text-gray-500">{STATUS_EFFECTS[eff].desc}</p>
-                         {eff === 'Infected' && isActive && (
-                           <p className="text-red-600 font-bold font-mono text-sm mt-1">{formatTime(infectedSeconds)}</p>
-                         )}
-                       </div>
-                       <button onClick={() => toggleEffect(eff)} className={`px-3 py-1 text-xs font-bold border ${isActive ? 'bg-red-100 border-red-400 text-red-700 hover:bg-red-200' : 'bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200'}`}>
-                         {isActive ? 'Remove' : 'Add'}
-                       </button>
-                     </div>
-                   )
-                 })}
-               </div>
+              <button onClick={triggerEffects} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold p-2 text-sm mb-4">Trigger Active Effects</button>
+              <div className="space-y-3">
+                {Object.keys(STATUS_EFFECTS).map(eff => {
+                  const isActive = state.effects.includes(eff);
+                  const isPermanent = (state.permanentEffects || []).includes(eff);
+                  return (
+                    <div key={eff} className="flex justify-between items-center border-b border-gray-100 pb-2 last:border-0">
+                      <div>
+                        <p className={`text-sm font-bold ${isActive ? 'text-red-600' : ''}`}>
+                          {eff}
+                          {isPermanent && <span className="ml-1 text-[9px] uppercase text-purple-700 border border-purple-400 px-1 rounded">Permanent</span>}
+                        </p>
+                        <p className="text-[10px] text-gray-500">{STATUS_EFFECTS[eff].desc}</p>
+                        {eff === 'Infected' && isActive && <p className="text-red-600 font-bold font-mono text-sm mt-1">{formatTime(infectedSeconds)}</p>}
+                      </div>
+                      {isPermanent ? (
+                        <span className="px-3 py-1 text-xs font-bold border bg-purple-100 border-purple-400 text-purple-700">Locked 🔒</span>
+                      ) : (
+                        <button onClick={() => toggleEffect(eff)}
+                          className={`px-3 py-1 text-xs font-bold border ${isActive ? 'bg-red-100 border-red-400 text-red-700 hover:bg-red-200' : 'bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200'}`}>
+                          {isActive ? 'Remove' : 'Add'}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
             <h2 className="text-lg font-bold border-b border-gray-300 pb-2 pt-4">Custom Stat Modifiers</h2>
@@ -2549,34 +1940,18 @@ export default function App() {
                   <div key={mod.id} className="flex justify-between items-center border-b border-gray-100 pb-2 last:border-0">
                     <div>
                       <p className="text-sm font-bold text-gray-900">{mod.name}</p>
-                      <p className="text-xs text-gray-600">
-                        {mod.amount > 0 ? '+' : ''}{mod.amount} {mod.stat === 'maxEp' ? 'Max EP' : mod.stat === 'physEnd' ? 'Phys End' : mod.stat === 'magEnd' ? 'Mag End' : mod.stat === 'agility' ? 'Agility' : mod.stat === 'def' ? 'Defense' : mod.stat === 'crit' ? 'Crit' : mod.stat === 'spd' ? 'Speed' : 'Damage'}
-                      </p>
+                      <p className="text-xs text-gray-600">{mod.amount > 0 ? '+' : ''}{mod.amount} {mod.stat}</p>
                     </div>
-                    <button onClick={() => removeCustomMod(mod.id)} className="px-3 py-1 text-xs font-bold bg-red-100 hover:bg-red-200 border border-red-400 text-red-700">
-                      Remove
-                    </button>
+                    <button onClick={() => removeCustomMod(mod.id)} className="px-3 py-1 text-xs font-bold bg-red-100 hover:bg-red-200 border border-red-400 text-red-700">Remove</button>
                   </div>
                 ))}
-                {(state.customMods || []).length === 0 && (
-                  <p className="text-gray-500 text-sm text-center py-2">No custom modifiers active.</p>
-                )}
+                {(state.customMods || []).length === 0 && <p className="text-gray-500 text-sm text-center py-2">No custom modifiers active.</p>}
               </div>
-
               <h3 className="text-sm font-bold mb-2">Add Modifier</h3>
               <div className="flex flex-col gap-2">
-                <input
-                  className={inputStyle}
-                  placeholder="Effect Name (e.g., Wounded)"
-                  value={modNameInput}
-                  onChange={e => setModNameInput(e.target.value)}
-                />
+                <input className={inputStyle} placeholder="Effect Name (e.g., Wounded)" value={modNameInput} onChange={e => setModNameInput(e.target.value)} />
                 <div className="flex gap-2">
-                  <select
-                    className={inputStyle}
-                    value={modStatInput}
-                    onChange={e => setModStatInput(e.target.value)}
-                  >
+                  <select className={inputStyle} value={modStatInput} onChange={e => setModStatInput(e.target.value)}>
                     <option value="maxEp">Max EP</option>
                     <option value="physEnd">Phys End</option>
                     <option value="magEnd">Mag End</option>
@@ -2586,19 +1961,8 @@ export default function App() {
                     <option value="spd">Speed</option>
                     <option value="dmg">Damage</option>
                   </select>
-                  <input
-                    type="number"
-                    className={`${inputStyle} w-24`}
-                    placeholder="+/-"
-                    value={modAmountInput}
-                    onChange={e => setModAmountInput(e.target.value)}
-                  />
-                  <button
-                    onClick={addCustomMod}
-                    className="bg-blue-600 text-white font-bold px-4 text-sm hover:bg-blue-700"
-                  >
-                    Add
-                  </button>
+                  <input type="number" className={`${inputStyle} w-24`} placeholder="+/-" value={modAmountInput} onChange={e => setModAmountInput(e.target.value)} />
+                  <button onClick={addCustomMod} className="bg-blue-600 text-white font-bold px-4 text-sm hover:bg-blue-700">Add</button>
                 </div>
               </div>
             </div>
@@ -2608,7 +1972,7 @@ export default function App() {
         {tab === 'curses' && (
           <div className="space-y-4">
             <h2 className="text-lg font-bold border-b border-gray-300 pb-2">Curses</h2>
-            <p className="text-xs text-gray-500 mb-2">Once activated, a curse is permanent for this save slot. Choose wisely.</p>
+            <p className="text-xs text-gray-500 mb-2">Once activated, a curse is permanent for this save slot.</p>
             <div className="bg-white border border-gray-300 p-4">
               <div className="space-y-4">
                 {CURSES.map((curse, i) => {
@@ -2618,19 +1982,11 @@ export default function App() {
                       <div className="flex justify-between items-start mb-2">
                         <h3 className={`font-bold text-sm ${isActive ? 'text-purple-700' : 'text-gray-900'}`}>{curse.name}</h3>
                         {!isActive && (
-                          <button 
-                            disabled={state.activeCurse !== null}
+                          <button disabled={state.activeCurse !== null}
                             onClick={() => {
-                              if (confirm(`Are you sure? Activating ${curse.name} is PERMANENT for this save slot.`)) {
-                                setState({ ...state, activeCurse: curse.name });
-                              }
+                              if (confirm(`Are you sure? Activating ${curse.name} is PERMANENT.`)) setState({ ...state, activeCurse: curse.name });
                             }}
-                            className={`px-3 py-1 text-xs font-bold border whitespace-nowrap ${
-                              state.activeCurse !== null 
-                                ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' 
-                                : 'bg-purple-600 text-white border-purple-700 hover:bg-purple-700'
-                            }`}
-                          >
+                            className={`px-3 py-1 text-xs font-bold border whitespace-nowrap ${state.activeCurse !== null ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' : 'bg-purple-600 text-white border-purple-700 hover:bg-purple-700'}`}>
                             Activate
                           </button>
                         )}
@@ -2648,12 +2004,7 @@ export default function App() {
         {tab === 'notes' && (
           <div className="space-y-4">
             <h2 className="text-lg font-bold border-b border-gray-300 pb-2">Game Notes</h2>
-            <textarea 
-              className={`${inputStyle} h-64 resize-none`}
-              placeholder="Write session notes here..."
-              value={state.notes}
-              onChange={e => setState({...state, notes: e.target.value})}
-            />
+            <textarea className={`${inputStyle} h-64 resize-none`} placeholder="Write session notes here..." value={state.notes} onChange={e => setState({ ...state, notes: e.target.value })} />
             <button onClick={saveGame} className={btnSuccess}>Save to Slot {currentSlot + 1}</button>
           </div>
         )}
