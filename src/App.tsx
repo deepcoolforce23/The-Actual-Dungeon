@@ -1658,18 +1658,18 @@ export default function App() {
 
               {/* Passive mage buff books */}
               {hasBookHealing && (
-                <p className="text-blue-700 bg-blue-50 border border-blue-200 rounded px-1 py-0.5">
-                  <span className="font-bold">📘 Book of Healing (held):</span> +1d6 to your healing spells' heal amount.
+                <p className="text-green-700 bg-green-50 border border-green-200 rounded px-1 py-0.5">
+                  <span className="font-bold">Book of Healing (held):</span> +1d6 to your healing spells' heal amount.
                 </p>
               )}
               {hasTomeViolence && (
-                <p className="text-blue-700 bg-blue-50 border border-blue-200 rounded px-1 py-0.5">
-                  <span className="font-bold">📘 Tome of Violence (held):</span> EP gain from Harming/Injuring/Tearing/Terror of Souls is halved.
+                <p className="text-red-700 bg-red-50 border border-red-200 rounded px-1 py-0.5">
+                  <span className="font-bold">Tome of Violence (held):</span> EP gain from Harming/Injuring/Tearing/Terror of Souls/Black Magic is halved.
                 </p>
               )}
               {hasWishesProtection && (
                 <p className="text-blue-700 bg-blue-50 border border-blue-200 rounded px-1 py-0.5">
-                  <span className="font-bold">📘 Wishes of Protection (held):</span> +1 Defense, -1 EP gain on protection spells.
+                  <span className="font-bold">Wishes of Protection (held):</span> +1 Defense, -1 EP gain on protection spells.
                 </p>
               )}
 
