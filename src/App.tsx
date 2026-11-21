@@ -176,6 +176,12 @@ const DEFAULT_STATE = {
   darkFateL6Learned: false,
 };
 
+// Passive books that grant effects while held in inventory
+const PASSIVE_BOOK_KEYS = ['book_healing', 'tome_violence', 'wishes_protection'];
+const VIOLENCE_SPELLS = ['Harming', 'Hurting', 'Injuring', 'Tearing', 'Terror of Souls'];
+const PROTECTION_SPELLS = ['Simple Protection', 'Light Shield', 'Arcane Shield', 'Blessing of Protection'];
+const HEALING_SPELLS = ['Simple Restoration', 'Primitive Healing', 'Universal Restoration', 'Ultimate Healing'];
+
 type ItemCategory =
   | 'material' | 'consumable' | 'equipment' | 'weapon'
   | 'shield' | 'armor' | 'book' | 'charm' | 'special';
@@ -275,9 +281,9 @@ const ITEM_DATABASE: ItemEntry[] = [
   { key: 'black_book', name: 'Black Book', category: 'book', note: 'Coinflip: replace L1/L2 spells with Harming/Injuring, gain Dark Fate' },
   { key: 'emberweaved_grimoire', name: 'Emberweaved Grimoire', category: 'book', aliases: ['ember grimoire'], note: 'Learn Ring of Embers / Concentrated Pyromancy' },
   { key: 'tome_ivy', name: 'Tome of Ivy', category: 'book', aliases: ['ivy tome'], note: 'Learn Spontaneous Poisoning' },
-  { key: 'book_healing', name: 'Book of Healing', category: 'book', note: 'Add d6 to your healing spells' },
-  { key: 'tome_violence', name: 'Tome of Violence', category: 'book', aliases: ['violence tome'], note: 'Halve EP gain from Hurting/Injuring/Tearing/Terror of Souls' },
-  { key: 'wishes_protection', name: 'Wishes of Protection', category: 'book', aliases: ['protection wishes'], note: '+1 Defense, -1 EP gain on protection spells' },
+  { key: 'book_healing', name: 'Book of Healing', category: 'book', note: 'Passive while held: +1d6 to your healing spells\' heal amount' },
+  { key: 'tome_violence', name: 'Tome of Violence', category: 'book', aliases: ['violence tome'], note: 'Passive while held: EP gain from Harming/Injuring/Tearing/Terror of Souls halved' },
+  { key: 'wishes_protection', name: 'Wishes of Protection', category: 'book', aliases: ['protection wishes'], note: 'Passive while held: +1 Defense, -1 EP gain on protection spells' },
   { key: 'book_al_artifice', name: "Alchemia I", category: 'book', teachesRecipes: ['ether', 'healing_potion'], note: 'Teaches how to make some useful remedies.' },
   { key: 'book_al_artifice2', name: "Alchemia II", category: 'book', teachesRecipes: ['combustive_vial','poison_vial','smoke_pot'], note: 'Teaches how to make some volatile potions.' },
   { key: 'book_illnesses', name: 'Common Illnesses and Afflictions', category: 'book', teachesRecipes: ['doctor_mask'], note: 'Teaches how to make some useful remedies.' },
@@ -301,7 +307,7 @@ const ALL_CRAFTING_RECIPES = [
   { key: 'ballista', name: 'Ballista', category: 'weapon', note: 'Siege Engine.', ingredients: [{ key: 'wood_pieces', name: 'Wood Pieces', qty: 8 }, { key: 'scrap_metal', name: 'Scrap Metal', qty: 6 }, { key: 'string', name: 'String', qty: 4 }, { key: 'leather_straps', name: 'Leather Straps', qty: 4 }] },
   { key: 'grappling_hook', name: 'Grappling Hook', category: 'equipment', note: 'Allows climbing/pulling distant objects.', ingredients: [{ key: 'scrap_metal', name: 'Scrap Metal', qty: 2 }, { key: 'string', name: 'String', qty: 3 }, { key: 'stick', name: 'Stick', qty: 1 }] },
   { key: 'clockwork_beetle', name: 'Clockwork Beetle', category: 'equipment', note: 'Useful for scouting.', ingredients: [{ key: 'scrap_metal', name: 'Scrap Metal', qty: 3 }, { key: 'gears', name: 'Gears', qty: 3 }] },
-  { key: 'doctor_mask', name: 'Doctor\'s Mask', category: 'equipment', note: 'Protects against gaseous Poison.', isSimple: true, ingredients: [{ key: 'leather_straps', name: 'Leather Straps', qty: 2 }, { key: 'refreshing_herb', name: 'Refreshing Herb', qty: 1 }, { key: 'cloth', name: 'Cloth', qty: 1 }] },
+  { key: 'doctor_mask', name: 'Doctor\'s Mask', category: 'equipment', note: 'Protects against Poison.', isSimple: true, ingredients: [{ key: 'leather_straps', name: 'Leather Straps', qty: 2 }, { key: 'refreshing_herb', name: 'Refreshing Herb', qty: 1 }, { key: 'cloth', name: 'Cloth', qty: 1 }] },
 ];
 
 const ENCHANTMENTS = [
@@ -636,6 +642,12 @@ export default function App() {
   const equippedMods = [...(wData.mods || []), ...(hData.mods || []), ...(bData.mods || []), ...(sData.mods || []), ...(state.customMods || [])];
   const getMod = (stat: string) => equippedMods.filter((m: any) => m.stat === stat).reduce((sum: number, m: any) => sum + m.amount, 0);
 
+  // --- Passive mage buff books (apply while held in inventory) ---
+  const hasBookHealing = state.inventory.some((it: any) => it?.itemKey === 'book_healing' || it?.name === 'Book of Healing');
+  const hasTomeViolence = state.inventory.some((it: any) => it?.itemKey === 'tome_violence' || it?.name === 'Tome of Violence');
+  const hasWishesProtection = state.inventory.some((it: any) => it?.itemKey === 'wishes_protection' || it?.name === 'Wishes of Protection');
+  const hasAnyPassiveBook = hasBookHealing || hasTomeViolence || hasWishesProtection;
+
   let maxEp = baseData.max_ep;
   if (state.activeCurse === 'Bound to Darkness') maxEp = 75;
   else if (state.activeCurse === 'Indelible Fatigue') maxEp = 100;
@@ -651,7 +663,8 @@ export default function App() {
   else if (state.activeCurse === 'Closed Mind') maxSpellSlots = 1;
   else maxSpellSlots = 3;
 
-  const totalDef = Math.max(0, (hData.bonus || 0) + (bData.bonus || 0) + (sData.bonus || 0) + getMod('def'));
+  // Wishes of Protection adds +1 Defense while held
+  const totalDef = Math.max(0, (hData.bonus || 0) + (bData.bonus || 0) + (sData.bonus || 0) + getMod('def') + (hasWishesProtection ? 1 : 0));
   let totalCrit = (hData.attack || 0) + (bData.attack || 0) + (sData.attack || 0) + (wData.attack || 0) + getMod('crit');
   if (state.accessory === 'Lucky Charm') totalCrit += 1;
   if (state.accessory === 'Vessel of Anxiety') totalCrit += 2;
@@ -724,6 +737,27 @@ export default function App() {
       if (epRolled === maxEpRoll && epRolled > 0) { finalEp = Math.max(0, epRolled - endurance); msg += ` (MAX ROLL!), -${endurance} Endurance`; }
       else msg += ` (Endurance inactive - need ${maxEpRoll} EP to trigger)`;
     }
+
+    // Tome of Violence: halve EP gain for violence spells
+    if (hasTomeViolence && VIOLENCE_SPELLS.includes(move.name) && finalEp > 0) {
+      const halved = Math.floor(finalEp / 2);
+      msg += ` | Tome of Violence: EP halved (${finalEp} → ${halved})`;
+      finalEp = halved;
+    }
+
+    // Wishes of Protection: -1 EP for protection spells
+    if (hasWishesProtection && PROTECTION_SPELLS.includes(move.name) && finalEp > 0) {
+      const reduced = Math.max(0, finalEp - 1);
+      msg += ` | Wishes of Protection: -1 EP (${finalEp} → ${reduced})`;
+      finalEp = reduced;
+    }
+
+    // Book of Healing: +1d6 to healing spells' heal amount (informational — heal is applied manually)
+    if (hasBookHealing && HEALING_SPELLS.includes(move.name)) {
+      const healBonus = rollDice('1d6');
+      msg += ` | Book of Healing: +${healBonus} additional healing (1d6)`;
+    }
+
     msg += ` → +${finalEp} EP`;
     setState(prev => ({ ...prev, ep: Math.min(maxEp, prev.ep + finalEp) }));
     setLastRoll(msg);
@@ -806,6 +840,12 @@ export default function App() {
   const handleUseItem = (index: number) => {
     const item = state.inventory[index];
     const key = item.itemKey || item.name.toLowerCase().replace(/\s+/g, '_');
+
+    // Passive mage buff books — don't consume, they work while held
+    if (PASSIVE_BOOK_KEYS.includes(key)) {
+      setLastRoll(`✦ ${item.name} is passive — it grants its bonus while held in inventory. No need to use it. (Remove from inventory to lose the bonus.)`);
+      return;
+    }
 
     if (ENCHANTMENT_UNLOCK_KEYS.includes(key)) {
       if (!state.weapon || state.weapon === 'Unarmed') { setLastRoll(`Equip a weapon first before using ${item.name}.`); return; }
@@ -1343,16 +1383,10 @@ export default function App() {
                 You've reached Level 6. Choose one — this replaces Injuring and cannot be changed.
               </p>
               <div className="flex gap-2">
-                <button
-                  onClick={() => chooseDarkFateL6Spell('tearing')}
-                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded"
-                >
+                <button onClick={() => chooseDarkFateL6Spell('tearing')} className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded">
                   Tearing
                 </button>
-                <button
-                  onClick={() => chooseDarkFateL6Spell('terror')}
-                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded"
-                >
+                <button onClick={() => chooseDarkFateL6Spell('terror')} className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded">
                   Terror of Souls
                 </button>
               </div>
@@ -1621,6 +1655,27 @@ export default function App() {
                 const accData = ITEM_DATABASE.find(i => i.name === state.accessory);
                 return accData?.note ? <p><span className="font-bold">Accessory:</span> {accData.note}</p> : null;
               })()}
+
+              {/* Passive mage buff books */}
+              {hasBookHealing && (
+                <p className="text-blue-700 bg-blue-50 border border-blue-200 rounded px-1 py-0.5">
+                  <span className="font-bold">📘 Book of Healing (held):</span> +1d6 to your healing spells' heal amount.
+                </p>
+              )}
+              {hasTomeViolence && (
+                <p className="text-blue-700 bg-blue-50 border border-blue-200 rounded px-1 py-0.5">
+                  <span className="font-bold">📘 Tome of Violence (held):</span> EP gain from Harming/Injuring/Tearing/Terror of Souls is halved.
+                </p>
+              )}
+              {hasWishesProtection && (
+                <p className="text-blue-700 bg-blue-50 border border-blue-200 rounded px-1 py-0.5">
+                  <span className="font-bold">📘 Wishes of Protection (held):</span> +1 Defense, -1 EP gain on protection spells.
+                </p>
+              )}
+
+              {(!wData.properties && !hData.passive && !bData.passive && !sData.passive && !ITEM_DATABASE.find(i => i.name === state.accessory)?.note && (!wData.mods || wData.mods.length === 0) && !(isCurrentWeaponUnlocked && currentEnchantmentData) && !hasAnyPassiveBook) && (
+                <p className="text-gray-500 italic">No special properties on current equipment.</p>
+              )}
             </div>
 
             <div className={cardStyle}>
@@ -1649,6 +1704,7 @@ export default function App() {
                 const hasEnchant = !!enchantData?.enchantment;
                 const isEquippedWeapon = item.name === state.weapon && !!item.category && ['weapon'].includes(item.category);
                 const isBlackBook = item.itemKey === 'black_book' || item.name === 'Black Book';
+                const isPassiveBook = PASSIVE_BOOK_KEYS.includes(item.itemKey || item.name.toLowerCase().replace(/\s+/g, '_'));
                 return (
                   <div key={i} className="flex justify-between items-start p-3 border-b border-gray-200 last:border-0">
                     <div className="pr-3 flex-1">
@@ -1658,6 +1714,7 @@ export default function App() {
                         {item.category && <span className="text-[9px] uppercase tracking-wide text-gray-500 border border-gray-300 px-1 leading-tight">{item.category}</span>}
                         {hasEnchant && <span className="text-[9px] uppercase tracking-wide text-purple-600 border border-purple-400 px-1 leading-tight font-bold">✦ Enchanted</span>}
                         {isEquippedWeapon && <span className="text-[9px] uppercase tracking-wide text-blue-600 border border-blue-400 px-1 leading-tight font-bold">Equipped</span>}
+                        {isPassiveBook && <span className="text-[9px] uppercase tracking-wide text-blue-600 border border-blue-400 px-1 leading-tight font-bold">Passive</span>}
                         {isBlackBook && state.blackBookResult && (
                           <span className="text-[9px] uppercase tracking-wide text-purple-600 border border-purple-400 px-1 leading-tight font-bold">
                             Used: {state.blackBookResult === 'insanity' ? 'Insanity' : 'Dark Fate'}
